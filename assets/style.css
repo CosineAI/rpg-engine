@@ -61,6 +61,7 @@ body {
 
 .tile.water{ background: var(--blue); }
 .tile.land{ background: var(--green); }
+.tile.goal{ background: #fbbf24; } /* yellow goal tile */
 
 .tile .player{
   width: 100%;
@@ -150,6 +151,7 @@ body {
   color: #e5e7eb;
   border-radius: 8px;
   font-size: 14px;
+  white-space: pre-line; /* allow multi-line battle log */
 }
 
 .choices{

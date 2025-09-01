@@ -15,7 +15,20 @@
       this.mapHeight = Math.ceil(window.innerHeight / this.tileSize);
       this.tiles = []; // 'water' | 'land'
       this.player = { x: 0, y: 0 };
-      this.hp = 100;
+      // Player stats
+      this.stats = {
+        maxHp: 25,
+        atk: 5,
+        def: 2,
+        spe: 8,
+        luc: 10,
+        xp: 0,
+        gold: 0,
+      };
+      this.hp = this.stats.maxHp;
+
+      // Enemy (created on combat start)
+      this.enemy = null;
 
       // Encounter
       this.encounterRange = { min: 5, max: 10 };
@@ -72,7 +85,9 @@
         <div id="combat" class="hidden">
           <div id="statusbar">
             <span class="label">Status</span>
-            <span>HP: <strong id="hp-val">100</strong></span>
+            <span>HP: <strong id="hp-val">25/25</strong></span>
+            <span>EXP: <strong id="exp-val">0</strong></span>
+            <span>Gold: <strong id="gold-val">0</strong></span>
           </div>
           <div class="combat-display">
             <div class="monster" aria-label="Blue monster placeholder"></div>
@@ -94,6 +109,8 @@
       this.$.dialogueText = this.root.querySelector('.dialogue-text');
       this.$.combat = this.root.querySelector('#combat');
       this.$.hp = this.root.querySelector('#hp-val');
+      this.$.exp = this.root.querySelector('#exp-val');
+      this.$.gold = this.root.querySelector('#gold-val');
       this.$.combatMsg = this.root.querySelector('.combat-message');
       this.$.choices = Array.from(this.root.querySelectorAll('.choice'));
       this.$.devToggle = this.root.querySelector('#dev-toggle');
@@ -236,8 +253,8 @@
       this.$dev.toCut.addEventListener('click', () => this.startCutscene());
       this.$dev.toOver.addEventListener('click', () => this.startOverworld());
       this.$dev.toCombat.addEventListener('click', () => this.startCombat());
-      this.$dev.win.addEventListener('click', () => this.finishCombat('You Win!'));
-      this.$dev.run.addEventListener('click', () => this.finishCombat('You ran away!'));
+      this.$dev.win.addEventListener('click', () => this.finishCombat('win'));
+      this.$dev.run.addEventListener('click', () => this.finishCombat('run'));
       this.$dev.restart.addEventListener('click', () => this.restartDemo());
 
       this.$.devToggle.addEventListener('click', () => this.toggleDev());
@@ -289,6 +306,37 @@
         this.tiles[y][0] = 'water';
         this.tiles[y][this.mapWidth - 1] = 'water';
       }
+
+      // place a single goal tile (yellow) on land, preferably near the edge
+      let placed = false;
+      for (let attempts = 0; attempts < 200 && !placed; attempts++) {
+        const x = randInt(1, this.mapWidth - 2);
+        const y = randInt(1, this.mapHeight - 2);
+        if (this.tiles[y][x] === 'land') {
+          // favor tiles farther from center
+          const dx = x - cx;
+          const dy = y - cy;
+          const dist2 = dx * dx + dy * dy;
+          if (dist2 > (this.mapWidth * this.mapWidth + this.mapHeight * this.mapHeight) * 0.05) {
+            this.tiles[y][x] = 'goal';
+            this.goal = { x, y };
+            placed = true;
+          }
+        }
+      }
+      if (!placed) {
+        // fallback: scan for any land tile
+        outer: for (let y = 1; y < this.mapHeight - 1; y++) {
+          for (let x = 1; x < this.mapWidth - 1; x++) {
+            if (this.tiles[y][x] === 'land') {
+              this.tiles[y][x] = 'goal';
+              this.goal = { x, y };
+              placed = true;
+              break outer;
+            }
+          }
+        }
+      }
     }
 
     placePlayerOnLand() {
@@ -323,6 +371,16 @@
 
     inBounds(x, y) {
       return x >= 0 && y >= 0 && x < this.mapWidth && y < this.mapHeight;
+    }
+
+    isWalkable(x, y) {
+      if (!this.inBounds(x, y)) return false;
+      const t = this.tiles[y][x];
+      return t !== 'water';
+    }
+
+    isGoal(x, y) {
+      return this.inBounds(x, y) && this.tiles[y][x] === 'goal';
     }
 
     resetEncounterCounter() {
@@ -370,9 +428,20 @@
           if (dir) {
             const nx = this.player.x + dir.x;
             const ny = this.player.y + dir.y;
-            if (this.inBounds(nx, ny) && this.tiles[ny][nx] === 'land') {
+            if (this.isWalkable(nx, ny)) {
               this.player.x = nx;
               this.player.y = ny;
+
+              // If player stepped on goal, end demo
+              if (this.isGoal(this.player.x, this.player.y)) {
+                this.render();
+                this.syncDevConsole();
+                this.endDemo();
+                e.preventDefault();
+                return;
+              }
+
+              // Random encounter countdown
               this.encounterSteps = Math.max(0, this.encounterSteps - 1);
               if (this.encounterSteps === 0) {
                 this.startCombat();
@@ -428,36 +497,133 @@
     startCombat() {
       this.current = State.COMBAT;
       this.choiceIndex = 0;
-      this.combatMessage = '';
+      // Initialize a fresh enemy each encounter
+      this.enemy = {
+        name: 'Enemy',
+        maxHp: 12,
+        hp: 12,
+        atk: 3,
+        def: 3,
+        spe: 5,
+        luc: 3,
+      };
+      this.combatMessage = 'A foe approaches!';
       this.render();
       this.syncDevConsole();
     }
 
     confirmChoice() {
       if (this.choiceIndex === 0) {
-        this.finishCombat('You Win!');
+        this.runCombatRound();
       } else {
-        this.finishCombat('You ran away!');
+        this.finishCombat('run');
       }
     }
 
-    finishCombat(message) {
-      this.combatMessage = message;
+    runCombatRound() {
+      if (!this.enemy) return;
+      const lines = [];
+      lines.push('-> Turn decision');
+
+      const order = this.stats.spe >= this.enemy.spe ? ['player', 'enemy'] : ['enemy', 'player'];
+
+      const attackOnce = (attacker) => {
+        const isPlayer = attacker === 'player';
+        const A = isPlayer ? { name: 'Player', atk: this.stats.atk, def: this.stats.def, spe: this.stats.spe, luc: this.stats.luc } :
+                             { name: 'Enemy', atk: this.enemy.atk, def: this.enemy.def, spe: this.enemy.spe, luc: this.enemy.luc };
+        const D = isPlayer ? { name: 'Enemy', atk: this.enemy.atk, def: this.enemy.def, spe: this.enemy.spe, luc: this.enemy.luc } :
+                             { name: 'Player', atk: this.stats.atk, def: this.stats.def, spe: this.stats.spe, luc: this.stats.luc };
+
+        // Hit check: 100% - target luck%
+        const hitChance = Math.max(0, 100 - D.luc);
+        const hitRoll = Math.random() * 100;
+        if (hitRoll >= hitChance) {
+          lines.push(`${A.name} attacks! ${A.name} missed! ${A.name} deals 0 hp damage.`);
+          return false; // no KO
+        }
+
+        // Crit check: speed/2 %
+        const crit = (Math.random() * 100) < (A.spe / 2);
+        const mult = crit ? 3 : 1; // crit multiplier 3x to match example
+        const dmg = Math.max(1, A.atk * mult - D.def);
+
+        if (isPlayer) {
+          this.enemy.hp = Math.max(0, this.enemy.hp - dmg);
+        } else {
+          this.hp = Math.max(0, this.hp - dmg);
+        }
+
+        const critText = crit ? 'CRITICAL DAMAGE! ' : '';
+        lines.push(`${A.name} attacks! ${critText}${A.name} deals ${dmg} hp damage.`);
+
+        // KO check
+        if (this.enemy && this.enemy.hp <= 0) {
+          lines.push('Enemy defeated! +10 EXP and +10 Gold.');
+          this.combatMessage = lines.join('\n');
+          this.renderCombatMessage();
+          this.finishCombat('win');
+          return true;
+        }
+        if (this.hp <= 0) {
+          lines.push('Player was defeated...');
+          this.combatMessage = lines.join('\n');
+          this.renderCombatMessage();
+          this.finishCombat('lose');
+          return true;
+        }
+        return false;
+      };
+
+      // Execute turns in order; stop if someone is KO'd
+      for (const who of order) {
+        const ended = attackOnce(who);
+        if (ended) return;
+      }
+
+      // Round ends without KO; update UI
+      this.combatMessage = lines.join('\n');
+      this.renderStatus();
       this.renderCombatMessage();
-      // Show completion alert and restart to intro
-      setTimeout(() => {
-        const again = confirm('Demo complete: ' + message + '\n\nRestart?');
-        if (again) this.restartDemo();
-      }, 250);
+    }
+
+    finishCombat(outcome) {
+      // outcome: 'win' | 'run' | 'lose'
+      if (outcome === 'win') {
+        this.stats.xp += 10;
+        this.stats.gold += 10;
+        this.enemy = null;
+        this.startOverworld();
+        return;
+      }
+      if (outcome === 'run') {
+        this.enemy = null;
+        this.startOverworld();
+        return;
+      }
+      if (outcome === 'lose') {
+        this.enemy = null;
+        alert('You were defeated! The demo will restart.');
+        this.restartDemo();
+        return;
+      }
     }
 
     restartDemo() {
       // Reset core variables
-      this.hp = 100;
+      this.hp = this.stats.maxHp;
+      this.stats.xp = 0;
+      this.stats.gold = 0;
       this.generateWorld();
       this.placePlayerOnLand();
       this.resetEncounterCounter();
       this.startCutscene();
+    }
+
+    endDemo() {
+      const again = confirm(`Demo complete!\\n\\nEXP: ${this.stats.xp}\\nGold: ${this.stats.gold}\\n\\nRestart?`);
+      if (again) {
+        this.restartDemo();
+      }
     }
 
     // ---------- RENDER ----------
@@ -503,7 +669,9 @@
     }
 
     renderStatus() {
-      this.$.hp.textContent = String(this.hp);
+      this.$.hp.textContent = `${this.hp}/${this.stats.maxHp}`;
+      if (this.$.exp) this.$.exp.textContent = String(this.stats.xp);
+      if (this.$.gold) this.$.gold.textContent = String(this.stats.gold);
     }
 
     renderChoices() {
