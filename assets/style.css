@@ -1,0 +1,273 @@
+:root{
+  --blue:#3b82f6;
+  --green:#22c55e;
+  --red:#ef4444;
+  --ink:#111827;
+  --muted:#6b7280;
+  --panel:#0b1220cc;
+  --panel-bg:#0b1220f2;
+  --cream:#f8fafc;
+}
+
+*{box-sizing:border-box}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  height: 100vh;
+  font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  margin: 0;
+  background: radial-gradient(1200px 800px at 50% -10%, #c7d2fe 0%, #e5e7eb 38%, #eef2ff 70%, #f8fafc 100%);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+}
+
+/* Game root */
+#app{
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #0b1120;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+/* OVERWORLD MAP */
+#map{
+  position:absolute;
+  inset: 0;
+  display:grid;
+  place-content:center;
+}
+
+.map-grid{
+  display:grid;
+  gap: 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.tile{
+  width: 28px;
+  height: 28px;
+}
+
+.tile.water{ background: var(--blue); }
+.tile.land{ background: var(--green); }
+
+.tile .player{
+  width: 100%;
+  height: 100%;
+  background: var(--red);
+}
+
+/* CUTSCENE DIALOGUE */
+#dialogue{
+  position:absolute;
+  left:0; right:0; bottom:0;
+  padding: 14px 16px 12px;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,.3) 18%, rgba(0,0,0,.42) 40%, rgba(0,0,0,.55) 100%);
+  color:#e5e7eb;
+}
+
+.dialogue-box{
+  background: rgba(17,24,39,.82);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  padding: 14px 16px 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+
+.dialogue-text{
+  font-size: 16px;
+  line-height: 1.55;
+}
+.dialogue-hint{
+  font-size: 12px;
+  color: #cbd5e1;
+  opacity: .85;
+  margin-top: 8px;
+}
+
+/* COMBAT */
+#combat{
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  z-index: 60; /* above UI */
+  background: rgba(3,7,18,0.9); /* dark overlay backdrop */
+}
+
+#statusbar{
+  height: 64px;
+  display:flex;
+  align-items:center;
+  gap: 16px;
+  padding: 0 18px;
+  color:#e5e7eb;
+  background: rgba(10,15,25,.75);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.35);
+  width: min(90vw, 720px);
+  justify-self: center; /* center within grid */
+  margin: 10px auto 8px;
+  font-size: 18px;
+}
+
+#statusbar .label{
+  color:#9ca3af;
+}
+
+.combat-display{
+  display:grid;
+  place-items:center;
+  position:relative;
+}
+
+.monster{
+  width: 120px;
+  height: 120px;
+  background: var(--blue);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(59,130,246,.45);
+}
+
+.combat-message{
+  position:absolute;
+  bottom: 10px;
+  padding: 6px 10px;
+  background: rgba(17,24,39,.8);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.choices{
+  display:flex;
+  justify-content:center;
+  gap: 10px;
+  padding: 12px 0 16px;
+}
+.choice{
+  min-width: 120px;
+  text-align:center;
+  padding: 10px 14px;
+  background: rgba(17,24,39,.82);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #e5e7eb;
+  border-radius: 10px;
+  cursor: default;
+  user-select:none;
+}
+.choice.selected{
+  outline: 2px solid #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251,191,36,.25);
+}
+
+/* DEV CONSOLE */
+#dev-toggle{
+  position:absolute;
+  top:8px; right:8px;
+  width: 28px; height: 28px;
+  background: rgba(17,24,39,.8);
+  border: 1px solid rgba(255,255,255,.08);
+  color:#e5e7eb;
+  font-size: 14px;
+  display:grid; place-items:center;
+  border-radius: 8px;
+  cursor:pointer;
+  user-select:none;
+  z-index: 30;
+}
+
+#dev-console{
+  position:absolute;
+  top: 0; right: 0;
+  width: min(360px, 100%);
+  height: 100%;
+  background: var(--panel-bg);
+  color: #e5e7eb;
+  backdrop-filter: blur(4px);
+  border-left: 1px solid rgba(255,255,255,.06);
+  padding: 12px;
+  z-index: 40;
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+}
+
+.dev-title{
+  font-weight: 700;
+  letter-spacing:.02em;
+}
+
+.dev-row{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dev-row-3{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.dev-grid{
+  display:grid;
+  gap: 8px;
+}
+
+.dev-console small{
+  color:#93a3b8;
+}
+
+.input, select, button{
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(10,15,25,.35);
+  color: #e5e7eb;
+}
+
+button.primary{
+  background: #16a34a;
+  border-color: rgba(255,255,255,.12);
+}
+button.warn{
+  background: #ef4444;
+  border-color: rgba(255,255,255,.12);
+}
+
+.section{
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(0,0,0,.15);
+}
+
+.hidden{ display:none !important; }
+
+/* Accessibility hint bubble */
+.hint{
+  position:absolute;
+  top: 8px; left: 8px;
+  color:#cbd5e1;
+  background: rgba(17,24,39,.7);
+  border:1px solid rgba(255,255,255,.08);
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 20;
+}
