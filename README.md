@@ -1,4 +1,3 @@
-# Generic Static Site Template
+# RPG-engine
 
-A minimal, no-build static site template — just open `index.html` and start editing.
-# rpg-engine
+Simple, turned-based RPG engine
