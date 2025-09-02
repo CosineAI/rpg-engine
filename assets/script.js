@@ -301,7 +301,7 @@
       // find a land tile near center
       let cx = Math.floor(this.mapWidth / 2);
       let cy = Math.floor(this.mapHeight / 2);
-      if (this.tiles[cy][cx] === 'land') {
+      if (this.isWalkable(cx, cy)) {
         this.player.x = cx;
         this.player.y = cy;
         return;
@@ -313,7 +313,7 @@
           for (let dx = -r; dx <= r; dx++) {
             const x = cx + dx;
             const y = cy + dy;
-            if (this.inBounds(x, y) && this.tiles[y][x] === 'land') {
+            if (this.inBounds(x, y) && this.isWalkable(x, y)) {
               this.player.x = x;
               this.player.y = y;
               return;
@@ -331,6 +331,19 @@
       return x >= 0 && y >= 0 && x < this.mapWidth && y < this.mapHeight;
     }
 
+    getTile(x, y) {
+      return this.inBounds(x, y) ? this.tiles[y][x] : 'water';
+    }
+
+    isWalkable(x, y) {
+      const t = this.getTile(x, y);
+      return t === 'land' || t === 'forest';
+    }
+
+    tileEncounterCost(x, y) {
+      return this.getTile(x, y) === 'forest' ? 2 : 1;
+    }
+
     resetEncounterCounter() {
       const { min, max } = this.encounterRange;
       this.encounterSteps = randInt(min, max);
@@ -346,7 +359,7 @@
 
       this.generateWorld();
       // Keep player in-bounds and on land if possible
-      if (!this.inBounds(this.player.x, this.player.y) || this.tiles[this.player.y][this.player.x] !== 'land') {
+      if (!this.inBounds(this.player.x, this.player.y) || !this.isWalkable(this.player.x, this.player.y)) {
         this.placePlayerOnLand();
       }
       this.render();
@@ -376,10 +389,11 @@
           if (dir) {
             const nx = this.player.x + dir.x;
             const ny = this.player.y + dir.y;
-            if (this.inBounds(nx, ny) && this.tiles[ny][nx] === 'land') {
+            if (this.inBounds(nx, ny) && this.isWalkable(nx, ny)) {
               this.player.x = nx;
               this.player.y = ny;
-              this.encounterSteps = Math.max(0, this.encounterSteps - 1);
+              const cost = this.tileEncounterCost(nx, ny);
+              this.encounterSteps = Math.max(0, this.encounterSteps - cost);
               if (this.encounterSteps === 0) {
                 this.startCombat();
               }
