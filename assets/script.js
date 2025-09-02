@@ -396,7 +396,7 @@
               this.player.x = nx;
               this.player.y = ny;
               const chance = this.tileEncounterChance(nx, ny);
-              if (Math.random() &lt; chance) {
+              if (Math.random() < chance) {
                 this.startCombat();
               } else {
                 this.render();
