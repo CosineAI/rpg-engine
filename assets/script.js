@@ -13,7 +13,7 @@
       this.tileSize = 28; // px per tile
       this.mapWidth = Math.ceil(window.innerWidth / this.tileSize);
       this.mapHeight = Math.ceil(window.innerHeight / this.tileSize);
-      this.tiles = []; // 'water' | 'land'
+      this.tiles = []; // 'water' | 'land' | 'forest'
       this.player = { x: 0, y: 0 };
       this.hp = 100;
 
@@ -276,7 +276,13 @@
           // base island shape: ellipse threshold ~1 with a bit of jitter
           const jitter = (noise2d(x * 13.37, y * 7.17) - 0.5) * 0.18;
           const island = d + jitter < 1 ? 'land' : 'water';
-          row.push(island);
+          // forests: mark a subset of land tiles using an additional noise threshold
+          let tileType = island;
+          if (island === 'land') {
+            const f = noise2d(x * 3.1, y * 3.7);
+            if (f > 0.72) tileType = 'forest';
+          }
+          row.push(tileType);
         }
         this.tiles.push(row);
       }

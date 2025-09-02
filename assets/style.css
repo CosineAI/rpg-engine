@@ -61,6 +61,7 @@ body {
 
 .tile.water{ background: var(--blue); }
 .tile.land{ background: var(--green); }
+.tile.forest{ background: #065f46; }
 
 .tile .player{
   width: 100%;
