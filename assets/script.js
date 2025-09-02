@@ -734,7 +734,13 @@
     }
 
     renderCombatMessage() {
-      this.$.combatMsg.textContent = this.current === State.COMBAT ? this.combatMessage : '';
+      if (this.current !== State.COMBAT) {
+        this.$.combatMsg.textContent = '';
+        return;
+      }
+      // Normalize any literal "\n" sequences into real newlines for display
+      const msg = String(this.combatMessage || '').replaceAll('\\n', '\n');
+      this.$.combatMsg.textContent = msg;
     }
   }
 
