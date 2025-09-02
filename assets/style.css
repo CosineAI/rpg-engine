@@ -61,6 +61,7 @@ body {
 
 .tile.water{ background: var(--blue); }
 .tile.land{ background: var(--green); }
+.tile.goal{ background: #fbbf24; } /* yellow goal tile */
 
 .tile .player{
   width: 100%;
@@ -144,12 +145,18 @@ body {
 .combat-message{
   position:absolute;
   bottom: 10px;
-  padding: 6px 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(90vw, 720px); /* fixed width to avoid resizing with content */
+  box-sizing: border-box;
+  padding: 8px 12px;
   background: rgba(17,24,39,.8);
   border: 1px solid rgba(255,255,255,.08);
   color: #e5e7eb;
   border-radius: 8px;
   font-size: 14px;
+  white-space: pre-line; /* allow multi-line battle log */
+  overflow-wrap: anywhere; /* keep long words inside */
 }
 
 .choices{
