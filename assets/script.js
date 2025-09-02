@@ -46,6 +46,7 @@
       // Combat
       this.choiceIndex = 0; // 0=Attack, 1=Run
       this.combatMessage = '';
+      this.awaitContinue = null; // if set, wait for key press to exit combat
 
       // State
       this.current = State.CUTSCENE;
@@ -122,7 +123,7 @@
 
       this.$.choices.forEach(el => {
         el.addEventListener('click', () => {
-          if (this.current !== State.COMBAT) return;
+          if (this.current !== State.COMBAT || this.awaitContinue) return;
           const idx = Number(el.dataset.idx);
           this.choiceIndex = idx;
           this.confirmChoice();
@@ -455,6 +456,15 @@
         }
 
         if (this.current === State.COMBAT) {
+          // If waiting for user to acknowledge end-of-battle, only proceed on Space/Enter
+          if (this.awaitContinue) {
+            if (e.key === ' ' || e.key === 'Enter') {
+              this.resolvePostCombat();
+              e.preventDefault();
+            }
+            return;
+          }
+
           if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             this.choiceIndex = this.choiceIndex === 0 ? 1 : 0;
             this.renderChoices();
@@ -497,6 +507,7 @@
     startCombat() {
       this.current = State.COMBAT;
       this.choiceIndex = 0;
+      this.awaitContinue = null;
       // Initialize a fresh enemy each encounter
       this.enemy = {
         name: 'Enemy',
@@ -561,6 +572,7 @@
           lines.push('Enemy defeated! +10 EXP and +10 Gold.');
           this.combatMessage = lines.join('\n');
           this.renderCombatMessage();
+          // Rewards and continue handled in finishCombat
           this.finishCombat('win');
           return true;
         }
@@ -595,7 +607,7 @@
         this.stats.xp += gainedExp;
         this.stats.gold += gainedGold;
 
-        // Show end-of-battle summary before leaving combat
+        // Show end-of-battle summary, and wait for key press to continue
         const rewardLine = `Victory! You gained ${gainedExp} EXP and ${gainedGold} Gold.`;
         if (!this.combatMessage || !this.combatMessage.includes('EXP') || !this.combatMessage.includes('Gold')) {
           this.combatMessage = this.combatMessage ? `${this.combatMessage}\n${rewardLine}` : rewardLine;
@@ -603,16 +615,16 @@
         this.renderStatus();
         this.renderCombatMessage();
 
-        // Transition back to overworld after a short delay so the player can read it
-        setTimeout(() => {
-          this.enemy = null;
-          this.startOverworld();
-        }, 900);
+        this.awaitContinue = 'win';
         return;
       }
       if (outcome === 'run') {
-        this.enemy = null;
-        this.startOverworld();
+        // Show a line and wait for key press to return to overworld
+        if (!this.combatMessage) {
+          this.combatMessage = 'You ran away!';
+          this.renderCombatMessage();
+        }
+        this.awaitContinue = 'run';
         return;
       }
       if (outcome === 'lose') {
@@ -635,10 +647,26 @@
     }
 
     endDemo() {
-      const again = confirm(`Demo complete!\\n\\nEXP: ${this.stats.xp}\\nGold: ${this.stats.gold}\\n\\nRestart?`);
+      const again = confirm(`Demo complete!\n\nEXP: ${this.stats.xp}\nGold: ${this.stats.gold}\n\nRestart?`);
       if (again) {
         this.restartDemo();
       }
+    }
+
+    resolvePostCombat() {
+      const outcome = this.awaitContinue;
+      this.awaitContinue = null;
+      if (outcome === 'win' || outcome === 'run') {
+        this.enemy = null;
+        this.startOverworld();
+        return;
+      }
+      if (outcome === 'lose') {
+        this.enemy = null;
+        this.restartDemo();
+        return;
+      }
+    }
     }
 
     // ---------- RENDER ----------
