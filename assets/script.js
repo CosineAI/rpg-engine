@@ -342,8 +342,8 @@
 
     tileEncounterChance(x, y) {
       const t = this.getTile(x, y);
-      if (t === 'forest') return 0.15;
-      if (t === 'land') return 0.05;
+      if (t === 'forest') return 0.30;
+      if (t === 'land') return 0.10;
       return 0;
     }
 
