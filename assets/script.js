@@ -340,8 +340,11 @@
       return t === 'land' || t === 'forest';
     }
 
-    tileEncounterCost(x, y) {
-      return this.getTile(x, y) === 'forest' ? 2 : 1;
+    tileEncounterChance(x, y) {
+      const t = this.getTile(x, y);
+      if (t === 'forest') return 0.15;
+      if (t === 'land') return 0.05;
+      return 0;
     }
 
     resetEncounterCounter() {
@@ -392,13 +395,13 @@
             if (this.inBounds(nx, ny) && this.isWalkable(nx, ny)) {
               this.player.x = nx;
               this.player.y = ny;
-              const cost = this.tileEncounterCost(nx, ny);
-              this.encounterSteps = Math.max(0, this.encounterSteps - cost);
-              if (this.encounterSteps === 0) {
+              const chance = this.tileEncounterChance(nx, ny);
+              if (Math.random() &lt; chance) {
                 this.startCombat();
+              } else {
+                this.render();
+                this.syncDevConsole();
               }
-              this.render();
-              this.syncDevConsole();
             }
             e.preventDefault();
           }
