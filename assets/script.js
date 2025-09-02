@@ -47,6 +47,7 @@
       this.choiceIndex = 0; // 0=Attack, 1=Run
       this.combatMessage = '';
       this.awaitContinue = null; // if set, wait for key press to exit combat
+      this.turn = 1; // combat turn counter
 
       // State
       this.current = State.CUTSCENE;
@@ -519,6 +520,7 @@
       this.current = State.COMBAT;
       this.choiceIndex = 0;
       this.awaitContinue = null;
+      this.turn = 1;
       // Initialize a fresh enemy each encounter
       this.enemy = {
         name: 'Enemy',
@@ -529,7 +531,7 @@
         spe: 5,
         luc: 3,
       };
-      this.combatMessage = 'A foe approaches!';
+      this.combatMessage = 'A foe approaches!\nWhat will you do?';
       this.render();
       this.syncDevConsole();
     }
@@ -545,7 +547,7 @@
     runCombatRound() {
       if (!this.enemy) return;
       const lines = [];
-      lines.push('-> Turn decision');
+      lines.push(`-> Turn ${this.turn}`);
 
       const order = this.stats.spe >= this.enemy.spe ? ['player', 'enemy'] : ['enemy', 'player'];
 
@@ -604,9 +606,10 @@
       }
 
       // Round ends without KO; update UI
-      this.combatMessage = lines.join('\n');
+      this.combatMessage = lines.join('\n') + '\nWhat will you do?';
       this.renderStatus();
       this.renderCombatMessage();
+      this.turn += 1;
     }
 
     finishCombat(outcome) {
