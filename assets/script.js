@@ -130,6 +130,13 @@
         });
       });
 
+      // Allow clicking the combat area to continue after battle
+      this.$.combat.addEventListener('click', () => {
+        if (this.current === State.COMBAT && this.awaitContinue) {
+          this.resolvePostCombat();
+        }
+      });
+
       this.buildDevConsole();
     }
 
@@ -408,6 +415,10 @@
 
     // ---------- INPUT ----------
     bindInputs() {
+      const isConfirmKey = (e) => {
+        return e.key === 'Enter' || e.key === ' ' || e.key === 'Space' || e.key === 'Spacebar' || e.code === 'Space';
+      };
+
       window.addEventListener('keydown', (e) => {
         // Toggle dev console with `
         if (e.key === '`') {
@@ -417,7 +428,7 @@
         }
 
         if (this.current === State.CUTSCENE) {
-          if (e.key === ' ' || e.key === 'Enter') {
+          if (isConfirmKey(e)) {
             this.advanceCutscene();
             e.preventDefault();
           }
@@ -458,7 +469,7 @@
         if (this.current === State.COMBAT) {
           // If waiting for user to acknowledge end-of-battle, only proceed on Space/Enter
           if (this.awaitContinue) {
-            if (e.key === ' ' || e.key === 'Enter') {
+            if (isConfirmKey(e)) {
               this.resolvePostCombat();
               e.preventDefault();
             }
@@ -470,7 +481,7 @@
             this.renderChoices();
             e.preventDefault();
           }
-          if (e.key === ' ' || e.key === 'Enter') {
+          if (isConfirmKey(e)) {
             this.confirmChoice();
             e.preventDefault();
           }
