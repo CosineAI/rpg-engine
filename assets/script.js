@@ -589,10 +589,25 @@
     finishCombat(outcome) {
       // outcome: 'win' | 'run' | 'lose'
       if (outcome === 'win') {
-        this.stats.xp += 10;
-        this.stats.gold += 10;
-        this.enemy = null;
-        this.startOverworld();
+        // Apply rewards
+        const gainedExp = 10;
+        const gainedGold = 10;
+        this.stats.xp += gainedExp;
+        this.stats.gold += gainedGold;
+
+        // Show end-of-battle summary before leaving combat
+        const rewardLine = `Victory! You gained ${gainedExp} EXP and ${gainedGold} Gold.`;
+        if (!this.combatMessage || !this.combatMessage.includes('EXP') || !this.combatMessage.includes('Gold')) {
+          this.combatMessage = this.combatMessage ? `${this.combatMessage}\n${rewardLine}` : rewardLine;
+        }
+        this.renderStatus();
+        this.renderCombatMessage();
+
+        // Transition back to overworld after a short delay so the player can read it
+        setTimeout(() => {
+          this.enemy = null;
+          this.startOverworld();
+        }, 900);
         return;
       }
       if (outcome === 'run') {
