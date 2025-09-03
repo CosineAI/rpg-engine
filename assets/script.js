@@ -130,8 +130,8 @@
           </div>
         </div>
 
-        <div class="hint">Press \` to toggle Dev Console</div>
-        <div id="dev-toggle">\`</div>
+        <div class="hint">Press &#96; to toggle Dev Console</div>
+        <div id="dev-toggle">&#96;</div>
         <div id="dev-console" class="hidden"></div>
       `;
 
@@ -240,7 +240,7 @@
         </div>
 
         <div class="section">
-          <small>Tip: Press the grave/backtick key (\`) to toggle this console.</small>
+          <small>Tip: Press the grave/backtick key (&#96;) to toggle this console.</small>
         </div>
       `;
 
