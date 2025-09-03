@@ -615,6 +615,8 @@
       const isConfirmKey = (e) => {
         return e.key === 'Enter' || e.key === ' ' || e.key === 'Space' || e.key === 'Spacebar' || e.code === 'Space';
       };
+      const isEnterKey = (e) => e.key === 'Enter';
+      const isSpaceKey = (e) => e.key === ' ' || e.key === 'Space' || e.key === 'Spacebar' || e.code === 'Space';
 
       window.addEventListener('keydown', (e) => {
         // Toggle dev console with `
@@ -681,14 +683,25 @@
             return;
           }
 
+          // Navigate options
           if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             this.choiceIndex = this.choiceIndex === 0 ? 1 : 0;
             this.renderChoices();
             e.preventDefault();
+            return;
           }
-          if (isConfirmKey(e)) {
+          // Allow Space to toggle selection between options
+          if (isSpaceKey(e)) {
+            this.choiceIndex = this.choiceIndex === 0 ? 1 : 0;
+            this.renderChoices();
+            e.preventDefault();
+            return;
+          }
+          // Allow Enter to confirm the current selection
+          if (isEnterKey(e)) {
             this.confirmChoice();
             e.preventDefault();
+            return;
           }
           return;
         }
