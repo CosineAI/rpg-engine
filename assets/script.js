@@ -988,6 +988,7 @@
       this.stopTyping(true);
     }
 
+  }
   // ---------- Utilities ----------
   function int(v, fallback=0){
     const n = Number(v);
