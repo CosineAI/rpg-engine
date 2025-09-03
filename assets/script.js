@@ -670,6 +670,12 @@
             if (isConfirmKey(e)) {
               this.skipTyping();
               e.preventDefault();
+              // Confirm immediately after revealing message for single-press action
+              if (this.awaitContinue) {
+                this.resolvePostCombat();
+              } else {
+                this.confirmChoice();
+              }
             }
             return;
           }
@@ -873,10 +879,8 @@
       }
       if (outcome === 'run') {
         // Show a line and wait for key press to return to overworld
-        if (!this.combatMessage) {
-          this.combatMessage = 'You ran away!';
-          this.renderCombatMessage();
-        }
+        this.combatMessage = 'You ran away!';
+        this.renderCombatMessage();
         this.awaitContinue = 'run';
         return;
       }
