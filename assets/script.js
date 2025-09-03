@@ -690,15 +690,8 @@
             e.preventDefault();
             return;
           }
-          // Allow Space to toggle selection between options
-          if (isSpaceKey(e)) {
-            this.choiceIndex = this.choiceIndex === 0 ? 1 : 0;
-            this.renderChoices();
-            e.preventDefault();
-            return;
-          }
-          // Allow Enter to confirm the current selection
-          if (isEnterKey(e)) {
+          // Space or Enter confirms the current selection
+          if (isSpaceKey(e) || isEnterKey(e)) {
             this.confirmChoice();
             e.preventDefault();
             return;
