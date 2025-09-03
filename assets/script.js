@@ -666,16 +666,10 @@
 
         if (this.current === State.COMBAT) {
           // If message is typing, allow Space/Enter to instantly reveal the full message
-          // and immediately take the appropriate action (confirm or continue)
           if (this.isTyping) {
             if (isConfirmKey(e)) {
               this.skipTyping();
               e.preventDefault();
-              if (this.awaitContinue) {
-                this.resolvePostCombat();
-              } else {
-                this.confirmChoice();
-              }
             }
             return;
           }
