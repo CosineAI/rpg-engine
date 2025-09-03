@@ -298,45 +298,45 @@
       const ry = Math.min(baseR, Math.floor((this.mapHeight - 6) / 2));
 
       // Init water
-      for (let y = 0; y &lt; this.mapHeight; y++) {
+      for (let y = 0; y < this.mapHeight; y++) {
         const row = new Array(this.mapWidth).fill('water');
         this.tiles.push(row);
       }
 
       // Oval mask with a little jitter to keep it organic
-      for (let y = 0; y &lt; this.mapHeight; y++) {
-        for (let x = 0; x &lt; this.mapWidth; x++) {
+      for (let y = 0; y < this.mapHeight; y++) {
+        for (let x = 0; x < this.mapWidth; x++) {
           const dx = (x - cx) / rx;
           const dy = (y - cy) / ry;
           const d = dx * dx + dy * dy;
           const jitter = (noise2d(x * 9.17, y * 11.31) - 0.5) * 0.22;
-          if (d + jitter &lt; 1) {
+          if (d + jitter < 1) {
             this.tiles[y][x] = 'land';
           }
         }
       }
 
       // Ensure a border ring of water
-      for (let x = 0; x &lt; this.mapWidth; x++) {
+      for (let x = 0; x < this.mapWidth; x++) {
         this.tiles[0][x] = 'water';
         this.tiles[this.mapHeight - 1][x] = 'water';
       }
-      for (let y = 0; y &lt; this.mapHeight; y++) {
+      for (let y = 0; y < this.mapHeight; y++) {
         this.tiles[y][0] = 'water';
         this.tiles[y][this.mapWidth - 1] = 'water';
       }
 
       // Collect land cells
       const landCells = [];
-      for (let y = 1; y &lt; this.mapHeight - 1; y++) {
-        for (let x = 1; x &lt; this.mapWidth - 1; x++) {
+      for (let y = 1; y < this.mapHeight - 1; y++) {
+        for (let x = 1; x < this.mapWidth - 1; x++) {
           if (this.tiles[y][x] === 'land') landCells.push({ x, y });
         }
       }
 
       // Helper: check interior land
-      const inLand = (x, y) =&gt; this.inBounds(x, y) &amp;&amp; this.tiles[y][x] === 'land';
-      const inWalkableLand = (x, y) =&gt; this.inBounds(x, y) &amp;&amp; (this.tiles[y][x] === 'land' || this.tiles[y][x] === 'forest');
+      const inLand = (x, y) => this.inBounds(x, y) && this.tiles[y][x] === 'land';
+      const inWalkableLand = (x, y) => this.inBounds(x, y) && (this.tiles[y][x] === 'land' || this.tiles[y][x] === 'forest');
 
       // Generate mountain ranges: contiguous lines of 3-6 tiles on land (impassable)
       const ranges = clamp(Math.floor(landCells.length / 400), 3, 8);
@@ -344,22 +344,22 @@
         { x: 1, y: 0 }, { x: -1, y: 0 },
         { x: 0, y: 1 }, { x: 0, y: -1 },
       ];
-      const leftOf = (d) =&gt; d.x === 1 ? { x: 0, y: -1 } :
+      const leftOf = (d) => d.x === 1 ? { x: 0, y: -1 } :
                            d.x === -1 ? { x: 0, y: 1 } :
                            d.y === 1 ? { x: 1, y: 0 } : { x: -1, y: 0 };
-      const rightOf = (d) =&gt; d.x === 1 ? { x: 0, y: 1 } :
+      const rightOf = (d) => d.x === 1 ? { x: 0, y: 1 } :
                             d.x === -1 ? { x: 0, y: -1 } :
                             d.y === 1 ? { x: -1, y: 0 } : { x: 1, y: 0 };
 
-      for (let r = 0; r &lt; ranges; r++) {
+      for (let r = 0; r < ranges; r++) {
         // Try to start a range somewhere not too close to the coast
         let start = null;
-        for (let tries = 0; tries &lt; 60 &amp;&amp; !start; tries++) {
+        for (let tries = 0; tries < 60 && !start; tries++) {
           const c = landCells[randInt(0, landCells.length - 1)];
           const dx = (c.x - cx) / rx;
           const dy = (c.y - cy) / ry;
           const dist = dx * dx + dy * dy;
-          if (dist &lt; 0.92 &amp;&amp; this.tiles[c.y][c.x] === 'land') start = { ...c };
+          if (dist < 0.92 && this.tiles[c.y][c.x] === 'land') start = { ...c };
         }
         if (!start) continue;
 
@@ -367,16 +367,16 @@
         const len = randInt(3, 6);
         let { x, y } = start;
 
-        for (let i = 0; i &lt; len; i++) {
+        for (let i = 0; i < len; i++) {
           if (!inLand(x, y)) break;
           this.tiles[y][x] = 'mountain';
           // Choose next step; prefer continuing, sometimes veer
           const roll = Math.random();
-          if (roll &lt; 0.65) {
+          if (roll < 0.65) {
             // continue
-          } else if (roll &lt; 0.82) {
+          } else if (roll < 0.82) {
             dir = leftOf(dir);
-          } else if (roll &lt; 0.99) {
+          } else if (roll < 0.99) {
             dir = rightOf(dir);
           } else {
             dir = dirs[randInt(0, dirs.length - 1)];
@@ -390,8 +390,8 @@
 
       // Forests: clustered with the possibility of singles, on land (not mountains)
       const candidates = [];
-      for (let y = 1; y &lt; this.mapHeight - 1; y++) {
-        for (let x = 1; x &lt; this.mapWidth - 1; x++) {
+      for (let y = 1; y < this.mapHeight - 1; y++) {
+        for (let x = 1; x < this.mapWidth - 1; x++) {
           if (this.tiles[y][x] === 'land') candidates.push({ x, y });
         }
       }
@@ -400,40 +400,40 @@
         { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
         { x: 1, y: 1 }, { x: -1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: -1 },
       ];
-      for (let s = 0; s &lt; seedCount; s++) {
+      for (let s = 0; s < seedCount; s++) {
         let seed = candidates[randInt(0, candidates.length - 1)];
         // Skip if mountain already placed here
         if (this.tiles[seed.y][seed.x] !== 'land') continue;
         let { x, y } = seed;
         const cluster = randInt(3, 12);
-        for (let i = 0; i &lt; cluster; i++) {
+        for (let i = 0; i < cluster; i++) {
           if (this.tiles[y][x] === 'land') this.tiles[y][x] = 'forest';
           // walk to a nearby cell to keep it clumpy
           const d = n8[randInt(0, n8.length - 1)];
           const nx = x + d.x;
           const ny = y + d.y;
-          if (inWalkableLand(nx, ny) &amp;&amp; this.tiles[ny][nx] !== 'mountain') {
+          if (inWalkableLand(nx, ny) && this.tiles[ny][nx] !== 'mountain') {
             x = nx; y = ny;
           }
         }
       }
       // sprinkle a few singles
       for (const c of candidates) {
-        if (this.tiles[c.y][c.x] === 'land' &amp;&amp; Math.random() &lt; 0.02) {
+        if (this.tiles[c.y][c.x] === 'land' && Math.random() < 0.02) {
           this.tiles[c.y][c.x] = 'forest';
         }
       }
 
       // Place a goal in the north of the island (yellow tile)
-      const northBand1 = candidates.filter(c =&gt; c.y &lt;= cy - Math.floor(ry * 0.6));
-      const northBand2 = candidates.filter(c =&gt; c.y &lt;= cy - Math.floor(ry * 0.4));
-      const northBand3 = candidates.filter(c =&gt; c.y &lt;= cy - Math.floor(ry * 0.2));
+      const northBand1 = candidates.filter(c => c.y <= cy - Math.floor(ry * 0.6));
+      const northBand2 = candidates.filter(c => c.y <= cy - Math.floor(ry * 0.4));
+      const northBand3 = candidates.filter(c => c.y <= cy - Math.floor(ry * 0.2));
       const pools = [northBand1, northBand2, northBand3, candidates];
       let goalPlaced = false;
       for (const pool of pools) {
         // prefer center-ish X so the goal is reachable
-        const sorted = pool.slice().sort((a, b) =&gt; Math.abs(a.x - cx) - Math.abs(b.x - cx));
-        for (let tries = 0; tries &lt; 80 &amp;&amp; !goalPlaced; tries++) {
+        const sorted = pool.slice().sort((a, b) => Math.abs(a.x - cx) - Math.abs(b.x - cx));
+        for (let tries = 0; tries < 80 && !goalPlaced; tries++) {
           const idx = Math.min(tries, sorted.length - 1);
           const c = sorted[idx] || pool[randInt(0, pool.length - 1)];
           if (!c) break;
@@ -448,8 +448,8 @@
 
       // If we failed to place a goal in bands, fallback anywhere on land
       if (!goalPlaced) {
-        outer: for (let y = 1; y &lt; this.mapHeight - 1; y++) {
-          for (let x = 1; x &lt; this.mapWidth - 1; x++) {
+        outer: for (let y = 1; y < this.mapHeight - 1; y++) {
+          for (let x = 1; x < this.mapWidth - 1; x++) {
             if (this.tiles[y][x] === 'land') {
               this.tiles[y][x] = 'goal';
               this.goal = { x, y };
@@ -468,12 +468,12 @@
       // Compute the southernmost and northernmost land rows
       let minY = this.mapHeight - 1;
       let maxY = 0;
-      for (let y = 0; y &lt; this.mapHeight; y++) {
-        for (let x = 0; x &lt; this.mapWidth; x++) {
+      for (let y = 0; y < this.mapHeight; y++) {
+        for (let x = 0; x < this.mapWidth; x++) {
           const t = this.tiles[y][x];
-          if (t !== 'water' &amp;&amp; t !== 'mountain') {
-            if (y &lt; minY) minY = y;
-            if (y &gt; maxY) maxY = y;
+          if (t !== 'water' && t !== 'mountain') {
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
           }
         }
       }
@@ -482,15 +482,15 @@
       const bandTop = Math.max(1, bandBottom - 6); // search a band ~6 tiles tall near the south
       // Prefer positions near the center X
       const cols = [];
-      for (let dx = 0; dx &lt;= Math.max(6, Math.floor(this.mapWidth / 6)); dx++) {
-        if (cx - dx &gt;= 1) cols.push(cx - dx);
-        if (dx !== 0 &amp;&amp; cx + dx &lt;= this.mapWidth - 2) cols.push(cx + dx);
-        if (cols.length &gt; Math.min(16, this.mapWidth)) break;
+      for (let dx = 0; dx <= Math.max(6, Math.floor(this.mapWidth / 6)); dx++) {
+        if (cx - dx >= 1) cols.push(cx - dx);
+        if (dx !== 0 && cx + dx <= this.mapWidth - 2) cols.push(cx + dx);
+        if (cols.length > Math.min(16, this.mapWidth)) break;
       }
 
       for (const x of cols) {
-        for (let y = bandBottom; y &gt;= bandTop; y--) {
-          if (this.inBounds(x, y) &amp;&amp; this.isWalkable(x, y)) {
+        for (let y = bandBottom; y >= bandTop; y--) {
+          if (this.inBounds(x, y) && this.isWalkable(x, y)) {
             this.player.x = x;
             this.player.y = y;
             return;
@@ -500,19 +500,19 @@
 
       // Fallback to center and spiral search if nothing found
       let fx = cx, fy = Math.floor((bandTop + bandBottom) / 2);
-      if (this.inBounds(fx, fy) &amp;&amp; this.isWalkable(fx, fy)) {
+      if (this.inBounds(fx, fy) && this.isWalkable(fx, fy)) {
         this.player.x = fx;
         this.player.y = fy;
         return;
       }
       // spiral search
       let r = 1;
-      while (r &lt; Math.max(this.mapWidth, this.mapHeight)) {
-        for (let dy = -r; dy &lt;= r; dy++) {
-          for (let dx = -r; dx &lt;= r; dx++) {
+      while (r < Math.max(this.mapWidth, this.mapHeight)) {
+        for (let dy = -r; dy <= r; dy++) {
+          for (let dx = -r; dx <= r; dx++) {
             const x = fx + dx;
             const y = fy + dy;
-            if (this.inBounds(x, y) &amp;&amp; this.isWalkable(x, y)) {
+            if (this.inBounds(x, y) && this.isWalkable(x, y)) {
               this.player.x = x;
               this.player.y = y;
               return;
@@ -595,7 +595,7 @@
           if (dir) {
             const nx = this.player.x + dir.x;
             const ny = this.player.y + dir.y;
-            if (this.inBounds(nx, ny) &amp;&amp; this.isWalkable(nx, ny)) {
+            if (this.inBounds(nx, ny) && this.isWalkable(nx, ny)) {
               const tileAfter = this.getTile(nx, ny);
               this.player.x = nx;
               this.player.y = ny;
@@ -607,7 +607,7 @@
                 this.endDemo();
               } else {
                 const chance = this.tileEncounterChance(nx, ny);
-                if (Math.random() &lt; chance) {
+                if (Math.random() < chance) {
                   this.startCombat();
                 } else {
                   this.render();
