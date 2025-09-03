@@ -1009,21 +1009,45 @@
       if (!el) return;
       const frames = 16;
       const frameW = 16; // px per frame in the sprite sheet
-      const stepMs = 2000 / frames; // 2s loop
+      const stepMs = 4000 / frames; // 4s loop
+      const pauseMs = 3000; // 3s pause between loops
 
-      this.enemyAnimTimer = setInterval(() => {
+      const tick = () => {
         if (this.current !== State.COMBAT) {
           this.stopEnemyAnim();
           return;
         }
+        // If we've completed a loop, pause then restart
+        if (this.enemyFrame >= frames) {
+          this.enemyFrame = 0;
+          el.style.backgroundPosition = '0px 0px';
+          this.enemyAnimTimer = setTimeout(() => {
+            if (this.current !== State.COMBAT) {
+              this.stopEnemyAnim();
+              return;
+            }
+            // start next loop
+            this.enemyFrame = 1;
+            el.style.backgroundPosition = `-${0 * frameW}px 0px`;
+            this.enemyAnimTimer = setTimeout(tick, stepMs);
+          }, pauseMs);
+          return;
+        }
+
         el.style.backgroundPosition = `-${this.enemyFrame * frameW}px 0px`;
-        this.enemyFrame = (this.enemyFrame + 1) % frames;
-      }, stepMs);
+        this.enemyFrame += 1;
+        this.enemyAnimTimer = setTimeout(tick, stepMs);
+      };
+
+      // start first loop
+      this.enemyFrame = 0;
+      el.style.backgroundPosition = '0px 0px';
+      this.enemyAnimTimer = setTimeout(tick, stepMs);
     }
 
     stopEnemyAnim() {
       if (this.enemyAnimTimer) {
-        clearInterval(this.enemyAnimTimer);
+        clearTimeout(this.enemyAnimTimer);
         this.enemyAnimTimer = null;
       }
       if (this.$.monster) {
