@@ -45,9 +45,7 @@
           name: 'Tough Slime',
           stats: { maxHp: 20, atk: 5, def: 4, spe: 4, luc: 2 },
           rewards: { xp: 20, gold: 15 },
-          sprite: { image: 'assets/images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000, animated: false }
-        }
-      };
+          sprite: { image: 'assets/images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000, animated: true, filter: 'hue-rotate(90deg)'      };
 
       // Encounter
       // Encounter probability (per step) by terrain
@@ -1116,6 +1114,13 @@
         el.style.transform = `scale(${sprite.scale})`;
       } else {
         el.style.transform = 'scale(16)';
+      }
+      // Apply optional CSS filter (e.g., hue-rotate). Preserve drop-shadow from CSS by appending it.
+      if (sprite.filter) {
+        el.style.filter = `${sprite.filter} drop-shadow(0 8px 24px rgba(0,0,0,.45))`;
+      } else {
+        // Clear inline filter so class-level drop-shadow applies
+        el.style.filter = '';
       }
     }
 
