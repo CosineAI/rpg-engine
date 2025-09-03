@@ -173,8 +173,11 @@ body {
   color: #e5e7eb;
   border-radius: 8px;
   font-size: 14px;
+  line-height: 1.5; /* stable line height */
+  height: calc(1.5em * 5); /* fixed to 5 lines */
   white-space: pre-line; /* allow multi-line battle log */
   overflow-wrap: anywhere; /* keep long words inside */
+  overflow: hidden; /* keep box height stable */
 }
 
 .choices{

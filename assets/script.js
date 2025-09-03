@@ -31,8 +31,11 @@
       this.enemy = null;
 
       // Encounter
-      this.encounterRange = { min: 5, max: 10 };
-      this.encounterSteps = 0;
+      // Encounter probability (per step) by terrain
+      this.encounterChanceForest = 0.30;
+      this.encounterChanceLand = 0.10;
+      // Global encounter multiplier
+      this.encounterBase = 1.0;
 
       // Cutscene
       this.cutsceneLines = [
@@ -48,6 +51,12 @@
       this.combatMessage = '';
       this.awaitContinue = null; // if set, wait for key press to exit combat
       this.turn = 1; // combat turn counter
+      // Typing state for combat messages
+      this.isTyping = false;
+      this.typingTimer = null;
+      this.typingIndex = 0;
+      this.typingFull = '';
+      this.lastCombatMessage = null;
 
       // State
       this.current = State.CUTSCENE;
@@ -62,7 +71,6 @@
       // Build world and start
       this.generateWorld();
       this.placePlayerOnLand();
-      this.resetEncounterCounter();
       this.render();
 
       // Keep world static; do not regenerate or resize on window changes
@@ -133,7 +141,12 @@
 
       // Allow clicking the combat area to continue after battle
       this.$.combat.addEventListener('click', () => {
-        if (this.current === State.COMBAT && this.awaitContinue) {
+        if (this.current !== State.COMBAT) return;
+        if (this.isTyping) {
+          this.skipTyping();
+          return;
+        }
+        if (this.awaitContinue) {
           this.resolvePostCombat();
         }
       });
@@ -169,23 +182,23 @@
               <input id="dev-y" type="number" min="0" class="input"/>
             </div>
           </div>
+          
           <div class="dev-row-3">
             <div>
-              <label>Steps To Encounter</label>
-              <input id="dev-enc" type="number" min="0" class="input"/>
+              <label>Forest %</label>
+              <input id="dev-forest-chance" type="number" min="0" max="100" step="1" class="input"/>
             </div>
             <div>
-              <label>Enc Min</label>
-              <input id="dev-enc-min" type="number" min="1" class="input"/>
+              <label>Land %</label>
+              <input id="dev-land-chance" type="number" min="0" max="100" step="1" class="input"/>
             </div>
             <div>
-              <label>Enc Max</label>
-              <input id="dev-enc-max" type="number" min="1" class="input"/>
+              <label>Base %</label>
+              <input id="dev-base-chance" type="number" min="0" max="200" step="1" class="input"/>
             </div>
           </div>
           <div class="dev-row">
             <button id="dev-apply" class="primary">Apply</button>
-            <button id="dev-randomize">Randomize Encounter</button>
           </div>
         </div>
 
@@ -215,11 +228,10 @@
         hp: $('#dev-hp'),
         x: $('#dev-x'),
         y: $('#dev-y'),
-        enc: $('#dev-enc'),
-        encMin: $('#dev-enc-min'),
-        encMax: $('#dev-enc-max'),
+        forestChance: $('#dev-forest-chance'),
+        landChance: $('#dev-land-chance'),
+        baseChance: $('#dev-base-chance'),
         apply: $('#dev-apply'),
-        randomize: $('#dev-randomize'),
         toCut: $('#dev-to-cutscene'),
         toOver: $('#dev-to-overworld'),
         toCombat: $('#dev-to-combat'),
@@ -239,10 +251,21 @@
           this.player.x = nx;
           this.player.y = ny;
         }
-        const emin = Math.max(1, int(this.$dev.encMin.value, this.encounterRange.min));
-        const emax = Math.max(emin, int(this.$dev.encMax.value, this.encounterRange.max));
-        this.encounterRange = { min: emin, max: emax };
-        this.encounterSteps = Math.max(0, int(this.$dev.enc.value, this.encounterSteps));
+        
+
+        // Encounter probabilities (percent inputs -> decimal)
+        if (this.$dev.forestChance) {
+          const fPct = clamp(int(this.$dev.forestChance.value, Math.round(this.encounterChanceForest * 100)), 0, 100);
+          this.encounterChanceForest = fPct / 100;
+        }
+        if (this.$dev.landChance) {
+          const lPct = clamp(int(this.$dev.landChance.value, Math.round(this.encounterChanceLand * 100)), 0, 100);
+          this.encounterChanceLand = lPct / 100;
+        }
+        if (this.$dev.baseChance) {
+          const bPct = clamp(int(this.$dev.baseChance.value, Math.round(this.encounterBase * 100)), 0, 200);
+          this.encounterBase = bPct / 100;
+        }
 
         const st = this.$dev.state.value;
         if (st !== this.current) {
@@ -254,10 +277,7 @@
         this.syncDevConsole();
       });
 
-      this.$dev.randomize.addEventListener('click', () => {
-        this.resetEncounterCounter();
-        this.syncDevConsole();
-      });
+      
 
       this.$dev.toCut.addEventListener('click', () => this.startCutscene());
       this.$dev.toOver.addEventListener('click', () => this.startOverworld());
@@ -280,9 +300,9 @@
       this.$dev.hp.value = this.hp;
       this.$dev.x.value = this.player.x;
       this.$dev.y.value = this.player.y;
-      this.$dev.enc.value = this.encounterSteps;
-      this.$dev.encMin.value = this.encounterRange.min;
-      this.$dev.encMax.value = this.encounterRange.max;
+      if (this.$dev.forestChance) this.$dev.forestChance.value = Math.round(this.encounterChanceForest * 100);
+      if (this.$dev.landChance) this.$dev.landChance.value = Math.round(this.encounterChanceLand * 100);
+      if (this.$dev.baseChance) this.$dev.baseChance.value = Math.round(this.encounterBase * 100);
     }
 
     // ---------- WORLD ----------
@@ -541,15 +561,13 @@
 
     tileEncounterChance(x, y) {
       const t = this.getTile(x, y);
-      if (t === 'forest') return 0.30;
-      if (t === 'land') return 0.10;
-      return 0;
+      let chance = 0;
+      if (t === 'forest') chance = this.encounterChanceForest;
+      else if (t === 'land') chance = this.encounterChanceLand;
+      return clamp(chance * this.encounterBase, 0, 1);
     }
 
-    resetEncounterCounter() {
-      const { min, max } = this.encounterRange;
-      this.encounterSteps = randInt(min, max);
-    }
+    
 
     resizeToViewport() {
       const cols = Math.ceil(window.innerWidth / this.tileSize);
@@ -621,6 +639,15 @@
         }
 
         if (this.current === State.COMBAT) {
+          // If message is typing, allow Space/Enter to instantly reveal the full message
+          if (this.isTyping) {
+            if (isConfirmKey(e)) {
+              this.skipTyping();
+              e.preventDefault();
+            }
+            return;
+          }
+
           // If waiting for user to acknowledge end-of-battle, only proceed on Space/Enter
           if (this.awaitContinue) {
             if (isConfirmKey(e)) {
@@ -671,7 +698,6 @@
     startOverworld() {
       this.current = State.OVERWORLD;
       this.combatMessage = '';
-      this.resetEncounterCounter();
       this.render();
       this.syncDevConsole();
     }
@@ -681,6 +707,9 @@
       this.choiceIndex = 0;
       this.awaitContinue = null;
       this.turn = 1;
+      // Reset any typing state
+      this.stopTyping(false);
+      this.lastCombatMessage = null;
       // Initialize a fresh enemy each encounter
       this.enemy = {
         name: 'Enemy',
@@ -691,7 +720,7 @@
         spe: 5,
         luc: 3,
       };
-      this.combatMessage = 'A foe approaches!\nWhat will you do?';
+      this.combatMessage = ['A foe approaches!', 'What will you do?'].join('\n');
       this.render();
       this.syncDevConsole();
     }
@@ -816,7 +845,6 @@
       this.stats.gold = 0;
       this.generateWorld();
       this.placePlayerOnLand();
-      this.resetEncounterCounter();
       this.startCutscene();
     }
 
@@ -898,15 +926,74 @@
 
     renderCombatMessage() {
       if (this.current !== State.COMBAT) {
+        // Leaving combat: stop any typing and clear
+        this.stopTyping(false);
         this.$.combatMsg.textContent = '';
+        this.lastCombatMessage = null;
         return;
       }
-      // Normalize any literal "\n" sequences into real newlines for display
-      const msg = String(this.combatMessage || '').replaceAll('\\n', '\n');
-      this.$.combatMsg.textContent = msg;
-    }
-  }
+      // Use the message as-is; CSS white-space handles newlines
+      const msg = String(this.combatMessage || '');
 
+      // If the message has changed, start typing it out
+      if (msg !== this.lastCombatMessage) {
+        this.lastCombatMessage = msg;
+        this.startTyping(msg);
+        return;
+      }
+
+      // If we're not currently typing, ensure the full message is shown
+      if (!this.isTyping) {
+        this.$.combatMsg.textContent = msg;
+      }
+    }
+
+    // ----- Typing helpers (combat only) -----
+    startTyping(text) {
+      // Interrupt any ongoing typing
+      this.stopTyping(false);
+
+      this.typingFull = text || '';
+      this.typingIndex = 0;
+      this.isTyping = true;
+      this.$.combatMsg.textContent = '';
+
+      const speedMs = 22; // per-character delay
+      this.typingTimer = setInterval(() => {
+        // Safety: if state changed, stop
+        if (this.current !== State.COMBAT) {
+          this.stopTyping(false);
+          return;
+        }
+        // Append next character
+        const next = this.typingFull[this.typingIndex++];
+        if (next !== undefined) {
+          this.$.combatMsg.textContent += next;
+        }
+        // Finished
+        if (this.typingIndex >= this.typingFull.length) {
+          this.stopTyping(true);
+        }
+      }, speedMs);
+    }
+
+    stopTyping(showFull = true) {
+      if (this.typingTimer) {
+        clearInterval(this.typingTimer);
+        this.typingTimer = null;
+      }
+      if (showFull && this.typingFull) {
+        this.$.combatMsg.textContent = this.typingFull;
+      }
+      this.isTyping = false;
+      this.typingIndex = 0;
+    }
+
+    skipTyping() {
+      this.stopTyping(true);
+    }
+
+  }
   // ---------- Utilities ----------
   function int(v, fallback=0){
     const n = Number(v);
