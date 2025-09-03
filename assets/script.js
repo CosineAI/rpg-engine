@@ -30,6 +30,25 @@
       // Enemy (created on combat start)
       this.enemy = null;
 
+      // Enemy registry: define different enemy types here
+      this.enemyTypes = {
+        slime: {
+          id: 'slime',
+          name: 'Slime',
+          stats: { maxHp: 12, atk: 3, def: 3, spe: 5, luc: 3 },
+          rewards: { xp: 10, gold: 10 },
+          sprite: { image: './images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000 }
+        },
+        // Example variant to show extensibility
+        toughSlime: {
+          id: 'toughSlime',
+          name: 'Tough Slime',
+          stats: { maxHp: 20, atk: 5, def: 4, spe: 4, luc: 2 },
+          rewards: { xp: 20, gold: 15 },
+          sprite: { image: './images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000 }
+        }
+      };
+
       // Encounter
       // Encounter probability (per step) by terrain
       this.encounterChanceForest = 0.30;
@@ -709,7 +728,7 @@
       this.syncDevConsole();
     }
 
-    startCombat() {
+    startCombat(enemyId) {
       this.current = State.COMBAT;
       this.choiceIndex = 0;
       this.awaitContinue = null;
@@ -717,17 +736,29 @@
       // Reset any typing state
       this.stopTyping(false);
       this.lastCombatMessage = null;
-      // Initialize a fresh enemy each encounter
+
+      // Pick enemy template
+      const tpl = this.enemyTypes[enemyId] || this.pickRandomEnemyForTile(this.player.x, this.player.y);
+
+      // Initialize a fresh enemy instance from template
+      const s = tpl.stats;
       this.enemy = {
-        name: 'Enemy',
-        maxHp: 12,
-        hp: 12,
-        atk: 3,
-        def: 3,
-        spe: 5,
-        luc: 3,
+        id: tpl.id,
+        name: tpl.name,
+        maxHp: s.maxHp,
+        hp: s.maxHp,
+        atk: s.atk,
+        def: s.def,
+        spe: s.spe,
+        luc: s.luc,
+        rewards: { ...tpl.rewards },
+        sprite: { ...tpl.sprite },
       };
-      this.combatMessage = ['A foe approaches!', 'What will you do?'].join('\n');
+
+      // Apply UI side-effects (sprite, scale)
+      this.applyEnemySprite(this.enemy.sprite);
+
+      this.combatMessage = [`${this.enemy.name} approaches!`, 'What will you do?'].join('\n');
       this.render();
       this.startEnemyAnim();
       this.syncDevConsole();
@@ -779,7 +810,8 @@
 
         // KO check
         if (this.enemy && this.enemy.hp <= 0) {
-          lines.push('Enemy defeated! +10 EXP and +10 Gold.');
+          const r = this.enemy?.rewards || { xp: 0, gold: 0 };
+          lines.push(`${this.enemy?.name || 'Enemy'} defeated! +${r.xp} EXP and +${r.gold} Gold.`);
           this.combatMessage = lines.join('\n');
           this.renderCombatMessage();
           // Rewards and continue handled in finishCombat
@@ -812,14 +844,13 @@
     finishCombat(outcome) {
       // outcome: 'win' | 'run' | 'lose'
       if (outcome === 'win') {
-        // Apply rewards
-        const gainedExp = 10;
-        const gainedGold = 10;
-        this.stats.xp += gainedExp;
-        this.stats.gold += gainedGold;
+        // Apply rewards based on enemy template
+        const r = this.enemy?.rewards || { xp: 0, gold: 0 };
+        this.stats.xp += r.xp;
+        this.stats.gold += r.gold;
 
         // Show end-of-battle summary, and wait for key press to continue
-        const rewardLine = `Victory! You gained ${gainedExp} EXP and ${gainedGold} Gold.`;
+        const rewardLine = `Victory! You gained ${r.xp} EXP and ${r.gold} Gold.`;
         if (!this.combatMessage || !this.combatMessage.includes('EXP') || !this.combatMessage.includes('Gold')) {
           this.combatMessage = this.combatMessage ? `${this.combatMessage}\n${rewardLine}` : rewardLine;
         }
@@ -893,6 +924,11 @@
       this.renderStatus();
       this.renderChoices();
       this.renderCombatMessage();
+
+      // Keep monster sprite style in sync when in combat
+      if (this.current === State.COMBAT && this.enemy?.sprite) {
+        this.applyEnemySprite(this.enemy.sprite);
+      }
     }
 
     renderMap() {
@@ -1007,10 +1043,14 @@
       this.enemyFrame = 0;
       const el = this.$.monster;
       if (!el) return;
-      const frames = 16;
-      const frameW = 16; // px per frame in the sprite sheet
-      const stepMs = 4000 / frames; // 4s loop
-      const pauseMs = 3000; // 3s pause between loops
+
+      // Pull animation info from current enemy (with sensible defaults)
+      const sprite = this.enemy?.sprite || {};
+      const frames = Number(sprite.frames) || 16;
+      const frameW = Number(sprite.frameW) || 16; // px per frame
+      const loopMs = Number(sprite.loopMs) || 4000;
+      const pauseMs = Number(sprite.pauseMs) || 3000;
+      const stepMs = loopMs / frames;
 
       const tick = () => {
         if (this.current !== State.COMBAT) {
@@ -1053,6 +1093,27 @@
       if (this.$.monster) {
         this.$.monster.style.backgroundPosition = '0px 0px';
       }
+    }
+
+    // Apply the current enemy sprite to the DOM element
+    applyEnemySprite(sprite) {
+      const el = this.$.monster;
+      if (!el || !sprite) return;
+      if (sprite.image) {
+        el.style.backgroundImage = `url('${sprite.image}')`;
+      }
+      if (sprite.scale) {
+        el.style.transform = `scale(${sprite.scale})`;
+      } else {
+        el.style.transform = 'scale(16)';
+      }
+    }
+
+    // Simple enemy selection by terrain; extend as needed
+    pickRandomEnemyForTile(x, y) {
+      const t = this.getTile(x, y);
+      if (t === 'forest') return this.enemyTypes.toughSlime;
+      return this.enemyTypes.slime;
     }
 
   }
