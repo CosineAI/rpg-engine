@@ -31,8 +31,6 @@
       this.enemy = null;
 
       // Encounter
-      this.encounterRange = { min: 5, max: 10 };
-      this.encounterSteps = 0;
       // Encounter probability (per step) by terrain
       this.encounterChanceForest = 0.30;
       this.encounterChanceLand = 0.10;
@@ -73,7 +71,6 @@
       // Build world and start
       this.generateWorld();
       this.placePlayerOnLand();
-      this.resetEncounterCounter();
       this.render();
 
       // Keep world static; do not regenerate or resize on window changes
@@ -185,20 +182,7 @@
               <input id="dev-y" type="number" min="0" class="input"/>
             </div>
           </div>
-          <div class="dev-row-3">
-            <div>
-              <label>Steps To Encounter</label>
-              <input id="dev-enc" type="number" min="0" class="input"/>
-            </div>
-            <div>
-              <label>Enc Min</label>
-              <input id="dev-enc-min" type="number" min="1" class="input"/>
-            </div>
-            <div>
-              <label>Enc Max</label>
-              <input id="dev-enc-max" type="number" min="1" class="input"/>
-            </div>
-          </div>
+          
           <div class="dev-row-3">
             <div>
               <label>Forest %</label>
@@ -215,7 +199,6 @@
           </div>
           <div class="dev-row">
             <button id="dev-apply" class="primary">Apply</button>
-            <button id="dev-randomize">Randomize Encounter</button>
           </div>
         </div>
 
@@ -245,14 +228,10 @@
         hp: $('#dev-hp'),
         x: $('#dev-x'),
         y: $('#dev-y'),
-        enc: $('#dev-enc'),
-        encMin: $('#dev-enc-min'),
-        encMax: $('#dev-enc-max'),
         forestChance: $('#dev-forest-chance'),
         landChance: $('#dev-land-chance'),
         baseChance: $('#dev-base-chance'),
         apply: $('#dev-apply'),
-        randomize: $('#dev-randomize'),
         toCut: $('#dev-to-cutscene'),
         toOver: $('#dev-to-overworld'),
         toCombat: $('#dev-to-combat'),
@@ -272,10 +251,7 @@
           this.player.x = nx;
           this.player.y = ny;
         }
-        const emin = Math.max(1, int(this.$dev.encMin.value, this.encounterRange.min));
-        const emax = Math.max(emin, int(this.$dev.encMax.value, this.encounterRange.max));
-        this.encounterRange = { min: emin, max: emax };
-        this.encounterSteps = Math.max(0, int(this.$dev.enc.value, this.encounterSteps));
+        
 
         // Encounter probabilities (percent inputs -> decimal)
         if (this.$dev.forestChance) {
@@ -301,10 +277,7 @@
         this.syncDevConsole();
       });
 
-      this.$dev.randomize.addEventListener('click', () => {
-        this.resetEncounterCounter();
-        this.syncDevConsole();
-      });
+      
 
       this.$dev.toCut.addEventListener('click', () => this.startCutscene());
       this.$dev.toOver.addEventListener('click', () => this.startOverworld());
@@ -327,9 +300,6 @@
       this.$dev.hp.value = this.hp;
       this.$dev.x.value = this.player.x;
       this.$dev.y.value = this.player.y;
-      this.$dev.enc.value = this.encounterSteps;
-      this.$dev.encMin.value = this.encounterRange.min;
-      this.$dev.encMax.value = this.encounterRange.max;
       if (this.$dev.forestChance) this.$dev.forestChance.value = Math.round(this.encounterChanceForest * 100);
       if (this.$dev.landChance) this.$dev.landChance.value = Math.round(this.encounterChanceLand * 100);
       if (this.$dev.baseChance) this.$dev.baseChance.value = Math.round(this.encounterBase * 100);
@@ -597,10 +567,7 @@
       return clamp(chance * this.encounterBase, 0, 1);
     }
 
-    resetEncounterCounter() {
-      const { min, max } = this.encounterRange;
-      this.encounterSteps = randInt(min, max);
-    }
+    
 
     resizeToViewport() {
       const cols = Math.ceil(window.innerWidth / this.tileSize);
@@ -731,7 +698,6 @@
     startOverworld() {
       this.current = State.OVERWORLD;
       this.combatMessage = '';
-      this.resetEncounterCounter();
       this.render();
       this.syncDevConsole();
     }
@@ -879,7 +845,6 @@
       this.stats.gold = 0;
       this.generateWorld();
       this.placePlayerOnLand();
-      this.resetEncounterCounter();
       this.startCutscene();
     }
 
