@@ -1028,7 +1028,7 @@
             }
             // start next loop
             this.enemyFrame = 1;
-            el.style.backgroundPosition = `-${0 * frameW}px 0px`;
+            el.style.backgroundPosition = `-${1 * frameW}px 0px`;
             this.enemyAnimTimer = setTimeout(tick, stepMs);
           }, pauseMs);
           return;
