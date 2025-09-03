@@ -932,11 +932,6 @@
     const root = document.getElementById('app');
     const game = new Game(root);
 
-    // global toggle with ` as well
-    window.addEventListener('keydown', (e) => {
-      if (e.key === '`') {
-        game.toggleDev();
-      }
-    });
+    
   });
 })();
