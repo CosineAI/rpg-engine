@@ -51,7 +51,6 @@ body {
   display:grid;
   gap: 0;
   image-rendering: pixelated;
-  image-rendering: crisp-edges;
 }
 
 .tile{
@@ -156,7 +155,6 @@ body {
   width: 16px;
   height: 16px;
   image-rendering: pixelated;
-  image-rendering: crisp-edges;
   background-image: url('./images/SlimeA.png');
   background-repeat: no-repeat;
   background-position: 0 0;
