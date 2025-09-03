@@ -48,6 +48,12 @@
       this.combatMessage = '';
       this.awaitContinue = null; // if set, wait for key press to exit combat
       this.turn = 1; // combat turn counter
+      // Typing state for combat messages
+      this.isTyping = false;
+      this.typingTimer = null;
+      this.typingIndex = 0;
+      this.typingFull = '';
+      this.lastCombatMessage = null;
 
       // State
       this.current = State.CUTSCENE;
@@ -133,7 +139,12 @@
 
       // Allow clicking the combat area to continue after battle
       this.$.combat.addEventListener('click', () => {
-        if (this.current === State.COMBAT && this.awaitContinue) {
+        if (this.current !== State.COMBAT) return;
+        if (this.isTyping) {
+          this.skipTyping();
+          return;
+        }
+        if (this.awaitContinue) {
           this.resolvePostCombat();
         }
       });
@@ -448,8 +459,8 @@
 
       // If we failed to place a goal in bands, fallback anywhere on land
       if (!goalPlaced) {
-        outer: for (let y = 1; y < this.mapHeight - 1; y++) {
-          for (let x = 1; x < this.mapWidth - 1; x++) {
+        outer: for (let y = 1; y &lt; this.mapHeight - 1; y++) {
+          for (let x = 1; x &lt; this.mapWidth - 1; x++) {
             if (this.tiles[y][x] === 'land') {
               this.tiles[y][x] = 'goal';
               this.goal = { x, y };
@@ -621,6 +632,15 @@
         }
 
         if (this.current === State.COMBAT) {
+          // If message is typing, allow Space/Enter to instantly reveal the full message
+          if (this.isTyping) {
+            if (isConfirmKey(e)) {
+              this.skipTyping();
+              e.preventDefault();
+            }
+            return;
+          }
+
           // If waiting for user to acknowledge end-of-battle, only proceed on Space/Enter
           if (this.awaitContinue) {
             if (isConfirmKey(e)) {
@@ -681,6 +701,9 @@
       this.choiceIndex = 0;
       this.awaitContinue = null;
       this.turn = 1;
+      // Reset any typing state
+      this.stopTyping(false);
+      this.lastCombatMessage = null;
       // Initialize a fresh enemy each encounter
       this.enemy = {
         name: 'Enemy',
@@ -691,7 +714,7 @@
         spe: 5,
         luc: 3,
       };
-      this.combatMessage = 'A foe approaches!\nWhat will you do?';
+      this.combatMessage = 'A foe approaches!\\nWhat will you do?';
       this.render();
       this.syncDevConsole();
     }
@@ -898,14 +921,72 @@
 
     renderCombatMessage() {
       if (this.current !== State.COMBAT) {
+        // Leaving combat: stop any typing and clear
+        this.stopTyping(false);
         this.$.combatMsg.textContent = '';
+        this.lastCombatMessage = null;
         return;
       }
       // Normalize any literal "\n" sequences into real newlines for display
-      const msg = String(this.combatMessage || '').replaceAll('\\n', '\n');
-      this.$.combatMsg.textContent = msg;
+      const msg = String(this.combatMessage || '').replaceAll('\\\\n', '\\n');
+
+      // If the message has changed, start typing it out
+      if (msg !== this.lastCombatMessage) {
+        this.lastCombatMessage = msg;
+        this.startTyping(msg);
+        return;
+      }
+
+      // If we're not currently typing, ensure the full message is shown
+      if (!this.isTyping) {
+        this.$.combatMsg.textContent = msg;
+      }
     }
-  }
+
+    // ----- Typing helpers (combat only) -----
+    startTyping(text) {
+      // Interrupt any ongoing typing
+      this.stopTyping(false);
+
+      this.typingFull = text || '';
+      this.typingIndex = 0;
+      this.isTyping = true;
+      this.$.combatMsg.textContent = '';
+
+      const speedMs = 22; // per-character delay
+      this.typingTimer = setInterval(() => {
+        // Safety: if state changed, stop
+        if (this.current !== State.COMBAT) {
+          this.stopTyping(false);
+          return;
+        }
+        // Append next character
+        const next = this.typingFull[this.typingIndex++];
+        if (next !== undefined) {
+          this.$.combatMsg.textContent += next;
+        }
+        // Finished
+        if (this.typingIndex >= this.typingFull.length) {
+          this.stopTyping(true);
+        }
+      }, speedMs);
+    }
+
+    stopTyping(showFull = true) {
+      if (this.typingTimer) {
+        clearInterval(this.typingTimer);
+        this.typingTimer = null;
+      }
+      if (showFull && this.typingFull) {
+        this.$.combatMsg.textContent = this.typingFull;
+      }
+      this.isTyping = false;
+      this.typingIndex = 0;
+    }
+
+    skipTyping() {
+      this.stopTyping(true);
+    }
 
   // ---------- Utilities ----------
   function int(v, fallback=0){
