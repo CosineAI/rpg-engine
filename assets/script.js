@@ -13,7 +13,7 @@
       this.tileSize = 28; // px per tile
       this.mapWidth = Math.ceil(window.innerWidth / this.tileSize);
       this.mapHeight = Math.ceil(window.innerHeight / this.tileSize);
-      this.tiles = []; // 'water' | 'land'
+      this.tiles = []; // 'water' | 'land' | 'forest'
       this.player = { x: 0, y: 0 };
       // Player stats
       this.stats = {
@@ -302,7 +302,13 @@
           // base island shape: ellipse threshold ~1 with a bit of jitter
           const jitter = (noise2d(x * 13.37, y * 7.17) - 0.5) * 0.18;
           const island = d + jitter < 1 ? 'land' : 'water';
-          row.push(island);
+          // forests: mark a subset of land tiles using an additional noise threshold
+          let tileType = island;
+          if (island === 'land') {
+            const f = noise2d(x * 3.1, y * 3.7);
+            if (f > 0.72) tileType = 'forest';
+          }
+          row.push(tileType);
         }
         this.tiles.push(row);
       }
@@ -352,7 +358,7 @@
       // find a land tile near center
       let cx = Math.floor(this.mapWidth / 2);
       let cy = Math.floor(this.mapHeight / 2);
-      if (this.tiles[cy][cx] === 'land') {
+      if (this.isWalkable(cx, cy)) {
         this.player.x = cx;
         this.player.y = cy;
         return;
@@ -364,7 +370,7 @@
           for (let dx = -r; dx <= r; dx++) {
             const x = cx + dx;
             const y = cy + dy;
-            if (this.inBounds(x, y) && this.tiles[y][x] === 'land') {
+            if (this.inBounds(x, y) && this.isWalkable(x, y)) {
               this.player.x = x;
               this.player.y = y;
               return;
@@ -382,14 +388,20 @@
       return x >= 0 && y >= 0 && x < this.mapWidth && y < this.mapHeight;
     }
 
-    isWalkable(x, y) {
-      if (!this.inBounds(x, y)) return false;
-      const t = this.tiles[y][x];
-      return t !== 'water';
+    getTile(x, y) {
+      return this.inBounds(x, y) ? this.tiles[y][x] : 'water';
     }
 
-    isGoal(x, y) {
-      return this.inBounds(x, y) && this.tiles[y][x] === 'goal';
+    isWalkable(x, y) {
+      const t = this.getTile(x, y);
+      return t === 'land' || t === 'forest';
+    }
+
+    tileEncounterChance(x, y) {
+      const t = this.getTile(x, y);
+      if (t === 'forest') return 0.30;
+      if (t === 'land') return 0.10;
+      return 0;
     }
 
     resetEncounterCounter() {
@@ -407,7 +419,7 @@
 
       this.generateWorld();
       // Keep player in-bounds and on land if possible
-      if (!this.inBounds(this.player.x, this.player.y) || this.tiles[this.player.y][this.player.x] !== 'land') {
+      if (!this.inBounds(this.player.x, this.player.y) || !this.isWalkable(this.player.x, this.player.y)) {
         this.placePlayerOnLand();
       }
       this.render();
@@ -441,26 +453,16 @@
           if (dir) {
             const nx = this.player.x + dir.x;
             const ny = this.player.y + dir.y;
-            if (this.isWalkable(nx, ny)) {
+            if (this.inBounds(nx, ny) && this.isWalkable(nx, ny)) {
               this.player.x = nx;
               this.player.y = ny;
-
-              // If player stepped on goal, end demo
-              if (this.isGoal(this.player.x, this.player.y)) {
+              const chance = this.tileEncounterChance(nx, ny);
+              if (Math.random() < chance) {
+                this.startCombat();
+              } else {
                 this.render();
                 this.syncDevConsole();
-                this.endDemo();
-                e.preventDefault();
-                return;
               }
-
-              // Random encounter countdown
-              this.encounterSteps = Math.max(0, this.encounterSteps - 1);
-              if (this.encounterSteps === 0) {
-                this.startCombat();
-              }
-              this.render();
-              this.syncDevConsole();
             }
             e.preventDefault();
           }
