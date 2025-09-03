@@ -60,7 +60,7 @@ body {
 }
 
 .tile.water{ background: var(--blue); }
-.tile.land{ background: lightgreen; }
+.tile.land{ background: var(--green); }
 .tile.forest{ background: #065f46; }
 .tile.mountain{ background: #374151; } /* dark gray */
 .tile.goal{ background: #facc15; } /* yellow */
