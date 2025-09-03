@@ -61,7 +61,13 @@ body {
 
 .tile.water{ background: var(--blue); }
 .tile.land{ background: var(--green); }
-.tile.forest{ background: #065f46; }
+.tile.forest{
+  background-color: var(--green); /* match land color under sprite */
+  background-image: url('./images/forest.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+} /* forest texture */
 .tile.mountain{
   background-color: var(--green); /* match land color under sprite */
   background-image: url('./images/mountain.png');
