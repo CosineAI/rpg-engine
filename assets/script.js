@@ -118,8 +118,8 @@
       this.$.devToggle = this.root.querySelector('#dev-toggle');
       this.$.devPanel = this.root.querySelector('#dev-console');
 
-      this.$.dialogue.addEventListener('click', () => {
-        if (this.current === State.CUTSCENE) this.advanceCutscene();
+      this.$.dialogue.addEventListener('click', (e) => {
+        // click-to-advance is handled globally
       });
 
       this.$.choices.forEach(el => {
@@ -640,6 +640,13 @@
             e.preventDefault();
           }
           return;
+        }
+      });
+
+      // Global click to advance cutscene anywhere on screen
+      window.addEventListener('click', () => {
+        if (this.current === State.CUTSCENE) {
+          this.advanceCutscene();
         }
       });
     }
