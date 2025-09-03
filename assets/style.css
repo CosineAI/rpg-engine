@@ -63,11 +63,11 @@ body {
 .tile.land{ background: var(--green); }
 .tile.forest{ background: #065f46; }
 .tile.mountain{
-  background-color: transparent;
+  background: transparent;
   background-image: url('./images/mountain.png');
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 100% 100%;
+  background-size: contain;
 } /* mountain texture */
 .tile.goal{ background: #facc15; } /* yellow */
 
