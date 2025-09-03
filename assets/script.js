@@ -30,6 +30,25 @@
       // Enemy (created on combat start)
       this.enemy = null;
 
+      // Enemy registry: define different enemy types here
+      this.enemyTypes = {
+        slime: {
+          id: 'slime',
+          name: 'Slime',
+          stats: { maxHp: 12, atk: 3, def: 3, spe: 5, luc: 3 },
+          rewards: { xp: 10, gold: 10 },
+          sprite: { image: 'assets/images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000, animated: true }
+        },
+        // Example variant to show extensibility
+        toughSlime: {
+          id: 'toughSlime',
+          name: 'Tough Slime',
+          stats: { maxHp: 20, atk: 5, def: 4, spe: 4, luc: 2 },
+          rewards: { xp: 20, gold: 15 },
+          sprite: { image: 'assets/images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000, animated: true, filter: 'hue-rotate(90deg)' }
+        }
+      };
+
       // Encounter
       // Encounter probability (per step) by terrain
       this.encounterChanceForest = 0.30;
@@ -113,8 +132,8 @@
           </div>
         </div>
 
-        <div class="hint">Press \` to toggle Dev Console</div>
-        <div id="dev-toggle">\`</div>
+        <div class="hint">Press &#96; to toggle Dev Console</div>
+        <div id="dev-toggle">&#96;</div>
         <div id="dev-console" class="hidden"></div>
       `;
 
@@ -223,7 +242,7 @@
         </div>
 
         <div class="section">
-          <small>Tip: Press the grave/backtick key (\`) to toggle this console.</small>
+          <small>Tip: Press the grave/backtick key (&#96;) to toggle this console.</small>
         </div>
       `;
 
@@ -596,6 +615,8 @@
       const isConfirmKey = (e) => {
         return e.key === 'Enter' || e.key === ' ' || e.key === 'Space' || e.key === 'Spacebar' || e.code === 'Space';
       };
+      const isEnterKey = (e) => e.key === 'Enter';
+      const isSpaceKey = (e) => e.key === ' ' || e.key === 'Space' || e.key === 'Spacebar' || e.code === 'Space';
 
       window.addEventListener('keydown', (e) => {
         // Toggle dev console with `
@@ -649,6 +670,12 @@
             if (isConfirmKey(e)) {
               this.skipTyping();
               e.preventDefault();
+              // Confirm immediately after revealing message for single-press action
+              if (this.awaitContinue) {
+                this.resolvePostCombat();
+              } else {
+                this.confirmChoice();
+              }
             }
             return;
           }
@@ -662,14 +689,18 @@
             return;
           }
 
+          // Navigate options
           if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             this.choiceIndex = this.choiceIndex === 0 ? 1 : 0;
             this.renderChoices();
             e.preventDefault();
+            return;
           }
-          if (isConfirmKey(e)) {
+          // Space or Enter confirms the current selection
+          if (isSpaceKey(e) || isEnterKey(e)) {
             this.confirmChoice();
             e.preventDefault();
+            return;
           }
           return;
         }
@@ -709,7 +740,7 @@
       this.syncDevConsole();
     }
 
-    startCombat() {
+    startCombat(enemyId) {
       this.current = State.COMBAT;
       this.choiceIndex = 0;
       this.awaitContinue = null;
@@ -717,19 +748,36 @@
       // Reset any typing state
       this.stopTyping(false);
       this.lastCombatMessage = null;
-      // Initialize a fresh enemy each encounter
+
+      // Pick enemy template
+      const tpl = this.enemyTypes[enemyId] || this.pickRandomEnemyForTile(this.player.x, this.player.y);
+
+      // Initialize a fresh enemy instance from template
+      const s = tpl.stats;
       this.enemy = {
-        name: 'Enemy',
-        maxHp: 12,
-        hp: 12,
-        atk: 3,
-        def: 3,
-        spe: 5,
-        luc: 3,
+        id: tpl.id,
+        name: tpl.name,
+        maxHp: s.maxHp,
+        hp: s.maxHp,
+        atk: s.atk,
+        def: s.def,
+        spe: s.spe,
+        luc: s.luc,
+        rewards: { ...tpl.rewards },
+        sprite: { ...tpl.sprite },
       };
-      this.combatMessage = ['A foe approaches!', 'What will you do?'].join('\n');
+
+      // Apply UI side-effects (sprite, scale)
+      this.applyEnemySprite(this.enemy.sprite);
+
+      this.combatMessage = [`${this.enemy.name} approaches!`, 'What will you do?'].join('\n');
       this.render();
-      this.startEnemyAnim();
+      // Start animation only if the enemy uses an animated sprite
+      if (this.enemy.sprite && this.enemy.sprite.animated) {
+        this.startEnemyAnim();
+      } else {
+        this.stopEnemyAnim();
+      }
       this.syncDevConsole();
     }
 
@@ -779,7 +827,8 @@
 
         // KO check
         if (this.enemy && this.enemy.hp <= 0) {
-          lines.push('Enemy defeated! +10 EXP and +10 Gold.');
+          const r = this.enemy?.rewards || { xp: 0, gold: 0 };
+          lines.push(`${this.enemy?.name || 'Enemy'} defeated! +${r.xp} EXP and +${r.gold} Gold.`);
           this.combatMessage = lines.join('\n');
           this.renderCombatMessage();
           // Rewards and continue handled in finishCombat
@@ -812,14 +861,13 @@
     finishCombat(outcome) {
       // outcome: 'win' | 'run' | 'lose'
       if (outcome === 'win') {
-        // Apply rewards
-        const gainedExp = 10;
-        const gainedGold = 10;
-        this.stats.xp += gainedExp;
-        this.stats.gold += gainedGold;
+        // Apply rewards based on enemy template
+        const r = this.enemy?.rewards || { xp: 0, gold: 0 };
+        this.stats.xp += r.xp;
+        this.stats.gold += r.gold;
 
         // Show end-of-battle summary, and wait for key press to continue
-        const rewardLine = `Victory! You gained ${gainedExp} EXP and ${gainedGold} Gold.`;
+        const rewardLine = `Victory! You gained ${r.xp} EXP and ${r.gold} Gold.`;
         if (!this.combatMessage || !this.combatMessage.includes('EXP') || !this.combatMessage.includes('Gold')) {
           this.combatMessage = this.combatMessage ? `${this.combatMessage}\n${rewardLine}` : rewardLine;
         }
@@ -831,10 +879,8 @@
       }
       if (outcome === 'run') {
         // Show a line and wait for key press to return to overworld
-        if (!this.combatMessage) {
-          this.combatMessage = 'You ran away!';
-          this.renderCombatMessage();
-        }
+        this.combatMessage = 'You ran away!';
+        this.renderCombatMessage();
         this.awaitContinue = 'run';
         return;
       }
@@ -893,6 +939,11 @@
       this.renderStatus();
       this.renderChoices();
       this.renderCombatMessage();
+
+      // Keep monster sprite style in sync when in combat
+      if (this.current === State.COMBAT && this.enemy?.sprite) {
+        this.applyEnemySprite(this.enemy.sprite);
+      }
     }
 
     renderMap() {
@@ -1007,10 +1058,19 @@
       this.enemyFrame = 0;
       const el = this.$.monster;
       if (!el) return;
-      const frames = 16;
-      const frameW = 16; // px per frame in the sprite sheet
-      const stepMs = 4000 / frames; // 4s loop
-      const pauseMs = 3000; // 3s pause between loops
+      // If this enemy shouldn't animate, ensure first frame and exit
+      if (!this.enemy?.sprite?.animated) {
+        el.style.backgroundPosition = '0px 0px';
+        return;
+      }
+
+      // Pull animation info from current enemy (with sensible defaults)
+      const sprite = this.enemy?.sprite || {};
+      const frames = Number(sprite.frames) || 16;
+      const frameW = Number(sprite.frameW) || 16; // px per frame
+      const loopMs = Number(sprite.loopMs) || 4000;
+      const pauseMs = Number(sprite.pauseMs) || 3000;
+      const stepMs = loopMs / frames;
 
       const tick = () => {
         if (this.current !== State.COMBAT) {
@@ -1053,6 +1113,33 @@
       if (this.$.monster) {
         this.$.monster.style.backgroundPosition = '0px 0px';
       }
+    }
+
+    // Apply the current enemy sprite to the DOM element
+    applyEnemySprite(sprite) {
+      const el = this.$.monster;
+      if (!el || !sprite) return;
+      if (sprite.image) {
+        el.style.backgroundImage = `url('${sprite.image}')`;
+      }
+      if (sprite.scale) {
+        el.style.transform = `scale(${sprite.scale})`;
+      } else {
+        el.style.transform = 'scale(16)';
+      }
+      // Apply optional CSS filter (e.g., hue-rotate). Preserve drop-shadow from CSS by appending it.
+      if (sprite.filter) {
+        el.style.filter = `${sprite.filter} drop-shadow(0 8px 24px rgba(0,0,0,.45))`;
+      } else {
+        // Clear inline filter so class-level drop-shadow applies
+        el.style.filter = '';
+      }
+    }
+
+    // Weighted enemy selection: 75% Slime, 25% Tough Slime
+    pickRandomEnemyForTile(x, y) {
+      const r = Math.random();
+      return r < 0.75 ? this.enemyTypes.slime : this.enemyTypes.toughSlime;
     }
 
   }

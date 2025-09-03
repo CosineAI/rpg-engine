@@ -19,3 +19,6 @@ Some suggestions:
 - A big boss!? Evil wizard? Corrupt knight? Angels and demons?
 - Towns! Add depth to your world building! Shops! Blacksmiths!
 - Battle options? Strengthen the strategic options during battle! Items! Weapon upgrades! Teammates?!
+
+Attribution
+- Slime animation source: https://henrysoftware.itch.io/
