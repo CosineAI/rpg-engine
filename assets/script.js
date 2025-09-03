@@ -37,7 +37,7 @@
           name: 'Slime',
           stats: { maxHp: 12, atk: 3, def: 3, spe: 5, luc: 3 },
           rewards: { xp: 10, gold: 10 },
-          sprite: { image: './images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000 }
+          sprite: { image: 'assets/images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000, animated: true }
         },
         // Example variant to show extensibility
         toughSlime: {
@@ -45,7 +45,7 @@
           name: 'Tough Slime',
           stats: { maxHp: 20, atk: 5, def: 4, spe: 4, luc: 2 },
           rewards: { xp: 20, gold: 15 },
-          sprite: { image: './images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000 }
+          sprite: { image: 'assets/images/SlimeA.png', frames: 16, frameW: 16, scale: 16, loopMs: 4000, pauseMs: 3000, animated: false }
         }
       };
 
@@ -760,7 +760,12 @@
 
       this.combatMessage = [`${this.enemy.name} approaches!`, 'What will you do?'].join('\n');
       this.render();
-      this.startEnemyAnim();
+      // Start animation only if the enemy uses an animated sprite
+      if (this.enemy.sprite && this.enemy.sprite.animated) {
+        this.startEnemyAnim();
+      } else {
+        this.stopEnemyAnim();
+      }
       this.syncDevConsole();
     }
 
@@ -1043,6 +1048,11 @@
       this.enemyFrame = 0;
       const el = this.$.monster;
       if (!el) return;
+      // If this enemy shouldn't animate, ensure first frame and exit
+      if (!this.enemy?.sprite?.animated) {
+        el.style.backgroundPosition = '0px 0px';
+        return;
+      }
 
       // Pull animation info from current enemy (with sensible defaults)
       const sprite = this.enemy?.sprite || {};
