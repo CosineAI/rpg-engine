@@ -60,14 +60,17 @@ body {
 }
 
 .tile.water{ background: var(--blue); }
-.tile.land{ background: var(--green); }
+.tile.land{ background: lightgreen; }
 .tile.forest{ background: #065f46; }
+.tile.mountain{ background: #374151; } /* dark gray */
+.tile.goal{ background: #facc15; } /* yellow */
 
 
 .tile .player{
   width: 100%;
   height: 100%;
-  background: var(--red);
+  background: var(--blue);
+  border-radius: 50%;
 }
 
 /* CUTSCENE DIALOGUE */
