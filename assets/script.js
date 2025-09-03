@@ -1119,11 +1119,10 @@
       }
     }
 
-    // Simple enemy selection by terrain; extend as needed
+    // Weighted enemy selection: 75% Slime, 25% Tough Slime
     pickRandomEnemyForTile(x, y) {
-      const t = this.getTile(x, y);
-      if (t === 'forest') return this.enemyTypes.toughSlime;
-      return this.enemyTypes.slime;
+      const r = Math.random();
+      return r < 0.75 ? this.enemyTypes.slime : this.enemyTypes.toughSlime;
     }
 
   }
