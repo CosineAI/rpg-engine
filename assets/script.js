@@ -118,8 +118,8 @@
       this.$.devToggle = this.root.querySelector('#dev-toggle');
       this.$.devPanel = this.root.querySelector('#dev-console');
 
-      this.$.dialogue.addEventListener('click', () => {
-        if (this.current === State.CUTSCENE) this.advanceCutscene();
+      this.$.dialogue.addEventListener('click', (e) => {
+        // click-to-advance is handled globally
       });
 
       this.$.choices.forEach(el => {
@@ -287,32 +287,36 @@
 
     // ---------- WORLD ----------
     generateWorld() {
+      // Build a rough oval island of ~20-tile radius with forests and mountains
       this.tiles = [];
-      const cx = (this.mapWidth - 1) / 2;
-      const cy = (this.mapHeight - 1) / 2;
-      const rx = this.mapWidth * 0.32;
-      const ry = this.mapHeight * 0.32;
+      const cx = Math.floor(this.mapWidth / 2);
+      const cy = Math.floor(this.mapHeight / 2);
 
+      // Clamp the island radius to fit the viewport with a small water border
+      const baseR = 20;
+      const rx = Math.min(baseR, Math.floor((this.mapWidth - 6) / 2));
+      const ry = Math.min(baseR, Math.floor((this.mapHeight - 6) / 2));
+
+      // Init water
       for (let y = 0; y < this.mapHeight; y++) {
-        const row = [];
+        const row = new Array(this.mapWidth).fill('water');
+        this.tiles.push(row);
+      }
+
+      // Oval mask with a little jitter to keep it organic
+      for (let y = 0; y < this.mapHeight; y++) {
         for (let x = 0; x < this.mapWidth; x++) {
           const dx = (x - cx) / rx;
           const dy = (y - cy) / ry;
           const d = dx * dx + dy * dy;
-          // base island shape: ellipse threshold ~1 with a bit of jitter
-          const jitter = (noise2d(x * 13.37, y * 7.17) - 0.5) * 0.18;
-          const island = d + jitter < 1 ? 'land' : 'water';
-          // forests: mark a subset of land tiles using an additional noise threshold
-          let tileType = island;
-          if (island === 'land') {
-            const f = noise2d(x * 3.1, y * 3.7);
-            if (f > 0.72) tileType = 'forest';
+          const jitter = (noise2d(x * 9.17, y * 11.31) - 0.5) * 0.22;
+          if (d + jitter < 1) {
+            this.tiles[y][x] = 'land';
           }
-          row.push(tileType);
         }
-        this.tiles.push(row);
       }
-      // smooth edges: ensure a border of water
+
+      // Ensure a border ring of water
       for (let x = 0; x < this.mapWidth; x++) {
         this.tiles[0][x] = 'water';
         this.tiles[this.mapHeight - 1][x] = 'water';
@@ -322,31 +326,134 @@
         this.tiles[y][this.mapWidth - 1] = 'water';
       }
 
-      // place a single goal tile (yellow) on land, preferably near the edge
-      let placed = false;
-      for (let attempts = 0; attempts < 200 && !placed; attempts++) {
-        const x = randInt(1, this.mapWidth - 2);
-        const y = randInt(1, this.mapHeight - 2);
-        if (this.tiles[y][x] === 'land') {
-          // favor tiles farther from center
-          const dx = x - cx;
-          const dy = y - cy;
-          const dist2 = dx * dx + dy * dy;
-          if (dist2 > (this.mapWidth * this.mapWidth + this.mapHeight * this.mapHeight) * 0.05) {
-            this.tiles[y][x] = 'goal';
-            this.goal = { x, y };
-            placed = true;
+      // Collect land cells
+      const landCells = [];
+      for (let y = 1; y < this.mapHeight - 1; y++) {
+        for (let x = 1; x < this.mapWidth - 1; x++) {
+          if (this.tiles[y][x] === 'land') landCells.push({ x, y });
+        }
+      }
+
+      // Helper: check interior land
+      const inLand = (x, y) => this.inBounds(x, y) && this.tiles[y][x] === 'land';
+      const inWalkableLand = (x, y) => this.inBounds(x, y) && (this.tiles[y][x] === 'land' || this.tiles[y][x] === 'forest');
+
+      // Generate mountain ranges: contiguous lines of 3-6 tiles on land (impassable)
+      const ranges = clamp(Math.floor(landCells.length / 400), 3, 8);
+      const dirs = [
+        { x: 1, y: 0 }, { x: -1, y: 0 },
+        { x: 0, y: 1 }, { x: 0, y: -1 },
+      ];
+      const leftOf = (d) => d.x === 1 ? { x: 0, y: -1 } :
+                           d.x === -1 ? { x: 0, y: 1 } :
+                           d.y === 1 ? { x: 1, y: 0 } : { x: -1, y: 0 };
+      const rightOf = (d) => d.x === 1 ? { x: 0, y: 1 } :
+                            d.x === -1 ? { x: 0, y: -1 } :
+                            d.y === 1 ? { x: -1, y: 0 } : { x: 1, y: 0 };
+
+      for (let r = 0; r < ranges; r++) {
+        // Try to start a range somewhere not too close to the coast
+        let start = null;
+        for (let tries = 0; tries < 60 && !start; tries++) {
+          const c = landCells[randInt(0, landCells.length - 1)];
+          const dx = (c.x - cx) / rx;
+          const dy = (c.y - cy) / ry;
+          const dist = dx * dx + dy * dy;
+          if (dist < 0.92 && this.tiles[c.y][c.x] === 'land') start = { ...c };
+        }
+        if (!start) continue;
+
+        let dir = dirs[randInt(0, dirs.length - 1)];
+        const len = randInt(3, 6);
+        let { x, y } = start;
+
+        for (let i = 0; i < len; i++) {
+          if (!inLand(x, y)) break;
+          this.tiles[y][x] = 'mountain';
+          // Choose next step; prefer continuing, sometimes veer
+          const roll = Math.random();
+          if (roll < 0.65) {
+            // continue
+          } else if (roll < 0.82) {
+            dir = leftOf(dir);
+          } else if (roll < 0.99) {
+            dir = rightOf(dir);
+          } else {
+            dir = dirs[randInt(0, dirs.length - 1)];
+          }
+          const nx = x + dir.x;
+          const ny = y + dir.y;
+          if (!inLand(nx, ny)) break;
+          x = nx; y = ny;
+        }
+      }
+
+      // Forests: clustered with the possibility of singles, on land (not mountains)
+      const candidates = [];
+      for (let y = 1; y < this.mapHeight - 1; y++) {
+        for (let x = 1; x < this.mapWidth - 1; x++) {
+          if (this.tiles[y][x] === 'land') candidates.push({ x, y });
+        }
+      }
+      const seedCount = clamp(Math.floor(candidates.length * 0.035), 4, 60);
+      const n8 = [
+        { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
+        { x: 1, y: 1 }, { x: -1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: -1 },
+      ];
+      for (let s = 0; s < seedCount; s++) {
+        let seed = candidates[randInt(0, candidates.length - 1)];
+        // Skip if mountain already placed here
+        if (this.tiles[seed.y][seed.x] !== 'land') continue;
+        let { x, y } = seed;
+        const cluster = randInt(3, 12);
+        for (let i = 0; i < cluster; i++) {
+          if (this.tiles[y][x] === 'land') this.tiles[y][x] = 'forest';
+          // walk to a nearby cell to keep it clumpy
+          const d = n8[randInt(0, n8.length - 1)];
+          const nx = x + d.x;
+          const ny = y + d.y;
+          if (inWalkableLand(nx, ny) && this.tiles[ny][nx] !== 'mountain') {
+            x = nx; y = ny;
           }
         }
       }
-      if (!placed) {
-        // fallback: scan for any land tile
+      // sprinkle a few singles
+      for (const c of candidates) {
+        if (this.tiles[c.y][c.x] === 'land' && Math.random() < 0.02) {
+          this.tiles[c.y][c.x] = 'forest';
+        }
+      }
+
+      // Place a goal in the north of the island (yellow tile)
+      const northBand1 = candidates.filter(c => c.y <= cy - Math.floor(ry * 0.6));
+      const northBand2 = candidates.filter(c => c.y <= cy - Math.floor(ry * 0.4));
+      const northBand3 = candidates.filter(c => c.y <= cy - Math.floor(ry * 0.2));
+      const pools = [northBand1, northBand2, northBand3, candidates];
+      let goalPlaced = false;
+      for (const pool of pools) {
+        // prefer center-ish X so the goal is reachable
+        const sorted = pool.slice().sort((a, b) => Math.abs(a.x - cx) - Math.abs(b.x - cx));
+        for (let tries = 0; tries < 80 && !goalPlaced; tries++) {
+          const idx = Math.min(tries, sorted.length - 1);
+          const c = sorted[idx] || pool[randInt(0, pool.length - 1)];
+          if (!c) break;
+          if (this.tiles[c.y][c.x] === 'land') {
+            this.tiles[c.y][c.x] = 'goal';
+            this.goal = { x: c.x, y: c.y };
+            goalPlaced = true;
+          }
+        }
+        if (goalPlaced) break;
+      }
+
+      // If we failed to place a goal in bands, fallback anywhere on land
+      if (!goalPlaced) {
         outer: for (let y = 1; y < this.mapHeight - 1; y++) {
           for (let x = 1; x < this.mapWidth - 1; x++) {
             if (this.tiles[y][x] === 'land') {
               this.tiles[y][x] = 'goal';
               this.goal = { x, y };
-              placed = true;
+              goalPlaced = true;
               break outer;
             }
           }
@@ -355,12 +462,47 @@
     }
 
     placePlayerOnLand() {
-      // find a land tile near center
-      let cx = Math.floor(this.mapWidth / 2);
-      let cy = Math.floor(this.mapHeight / 2);
-      if (this.isWalkable(cx, cy)) {
-        this.player.x = cx;
-        this.player.y = cy;
+      // Start the player near the south end of the island, roughly centered horizontally
+      const cx = Math.floor(this.mapWidth / 2);
+
+      // Compute the southernmost and northernmost land rows
+      let minY = this.mapHeight - 1;
+      let maxY = 0;
+      for (let y = 0; y < this.mapHeight; y++) {
+        for (let x = 0; x < this.mapWidth; x++) {
+          const t = this.tiles[y][x];
+          if (t !== 'water' && t !== 'mountain') {
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      const bandBottom = Math.max(1, maxY);
+      const bandTop = Math.max(1, bandBottom - 6); // search a band ~6 tiles tall near the south
+      // Prefer positions near the center X
+      const cols = [];
+      for (let dx = 0; dx <= Math.max(6, Math.floor(this.mapWidth / 6)); dx++) {
+        if (cx - dx >= 1) cols.push(cx - dx);
+        if (dx !== 0 && cx + dx <= this.mapWidth - 2) cols.push(cx + dx);
+        if (cols.length > Math.min(16, this.mapWidth)) break;
+      }
+
+      for (const x of cols) {
+        for (let y = bandBottom; y >= bandTop; y--) {
+          if (this.inBounds(x, y) && this.isWalkable(x, y)) {
+            this.player.x = x;
+            this.player.y = y;
+            return;
+          }
+        }
+      }
+
+      // Fallback to center and spiral search if nothing found
+      let fx = cx, fy = Math.floor((bandTop + bandBottom) / 2);
+      if (this.inBounds(fx, fy) && this.isWalkable(fx, fy)) {
+        this.player.x = fx;
+        this.player.y = fy;
         return;
       }
       // spiral search
@@ -368,8 +510,8 @@
       while (r < Math.max(this.mapWidth, this.mapHeight)) {
         for (let dy = -r; dy <= r; dy++) {
           for (let dx = -r; dx <= r; dx++) {
-            const x = cx + dx;
-            const y = cy + dy;
+            const x = fx + dx;
+            const y = fy + dy;
             if (this.inBounds(x, y) && this.isWalkable(x, y)) {
               this.player.x = x;
               this.player.y = y;
@@ -379,9 +521,9 @@
         }
         r++;
       }
-      // fallback
+      // ultimate fallback
       this.player.x = 1;
-      this.player.y = 1;
+      this.player.y = this.mapHeight - 2;
     }
 
     inBounds(x, y) {
@@ -394,7 +536,7 @@
 
     isWalkable(x, y) {
       const t = this.getTile(x, y);
-      return t === 'land' || t === 'forest';
+      return t === 'land' || t === 'forest' || t === 'goal';
     }
 
     tileEncounterChance(x, y) {
@@ -454,14 +596,23 @@
             const nx = this.player.x + dir.x;
             const ny = this.player.y + dir.y;
             if (this.inBounds(nx, ny) && this.isWalkable(nx, ny)) {
+              const tileAfter = this.getTile(nx, ny);
               this.player.x = nx;
               this.player.y = ny;
-              const chance = this.tileEncounterChance(nx, ny);
-              if (Math.random() < chance) {
-                this.startCombat();
-              } else {
+
+              if (tileAfter === 'goal') {
+                // Reached the objective
                 this.render();
                 this.syncDevConsole();
+                this.endDemo();
+              } else {
+                const chance = this.tileEncounterChance(nx, ny);
+                if (Math.random() < chance) {
+                  this.startCombat();
+                } else {
+                  this.render();
+                  this.syncDevConsole();
+                }
               }
             }
             e.preventDefault();
@@ -489,6 +640,13 @@
             e.preventDefault();
           }
           return;
+        }
+      });
+
+      // Global click to advance cutscene anywhere on screen
+      window.addEventListener('click', () => {
+        if (this.current === State.CUTSCENE) {
+          this.advanceCutscene();
         }
       });
     }
@@ -774,11 +932,6 @@
     const root = document.getElementById('app');
     const game = new Game(root);
 
-    // global toggle with ` as well
-    window.addEventListener('keydown', (e) => {
-      if (e.key === '`') {
-        game.toggleDev();
-      }
-    });
+    
   });
 })();
