@@ -33,6 +33,9 @@
       // Encounter
       this.encounterRange = { min: 5, max: 10 };
       this.encounterSteps = 0;
+      // Encounter probability (per step) by terrain
+      this.encounterChanceForest = 0.30;
+      this.encounterChanceLand = 0.10;
 
       // Cutscene
       this.cutsceneLines = [
@@ -195,6 +198,16 @@
             </div>
           </div>
           <div class="dev-row">
+            <div>
+              <label>Forest %</label>
+              <input id="dev-forest-chance" type="number" min="0" max="100" step="1" class="input"/>
+            </div>
+            <div>
+              <label>Land %</label>
+              <input id="dev-land-chance" type="number" min="0" max="100" step="1" class="input"/>
+            </div>
+          </div>
+          <div class="dev-row">
             <button id="dev-apply" class="primary">Apply</button>
             <button id="dev-randomize">Randomize Encounter</button>
           </div>
@@ -229,6 +242,8 @@
         enc: $('#dev-enc'),
         encMin: $('#dev-enc-min'),
         encMax: $('#dev-enc-max'),
+        forestChance: $('#dev-forest-chance'),
+        landChance: $('#dev-land-chance'),
         apply: $('#dev-apply'),
         randomize: $('#dev-randomize'),
         toCut: $('#dev-to-cutscene'),
@@ -254,6 +269,16 @@
         const emax = Math.max(emin, int(this.$dev.encMax.value, this.encounterRange.max));
         this.encounterRange = { min: emin, max: emax };
         this.encounterSteps = Math.max(0, int(this.$dev.enc.value, this.encounterSteps));
+
+        // Encounter probabilities (percent inputs -> decimal)
+        if (this.$dev.forestChance) {
+          const fPct = clamp(int(this.$dev.forestChance.value, Math.round(this.encounterChanceForest * 100)), 0, 100);
+          this.encounterChanceForest = fPct / 100;
+        }
+        if (this.$dev.landChance) {
+          const lPct = clamp(int(this.$dev.landChance.value, Math.round(this.encounterChanceLand * 100)), 0, 100);
+          this.encounterChanceLand = lPct / 100;
+        }
 
         const st = this.$dev.state.value;
         if (st !== this.current) {
@@ -294,7 +319,10 @@
       this.$dev.enc.value = this.encounterSteps;
       this.$dev.encMin.value = this.encounterRange.min;
       this.$dev.encMax.value = this.encounterRange.max;
-    }
+      if (this.$dev.forestChance) this.$dev.forestChance.value = Math.round(this.encounterChanceForest * 100);
+      if (this.$dev.landChance) this.$dev.landChance.value = Math.round(this.encounterChanceLand * 100);
+ _code  new </}
+
 
     // ---------- WORLD ----------
     generateWorld() {
@@ -552,8 +580,8 @@
 
     tileEncounterChance(x, y) {
       const t = this.getTile(x, y);
-      if (t === 'forest') return 0.30;
-      if (t === 'land') return 0.10;
+      if (t === 'forest') return this.encounterChanceForest;
+      if (t === 'land') return this.encounterChanceLand;
       return 0;
     }
 
