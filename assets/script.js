@@ -321,8 +321,7 @@
       this.$dev.encMax.value = this.encounterRange.max;
       if (this.$dev.forestChance) this.$dev.forestChance.value = Math.round(this.encounterChanceForest * 100);
       if (this.$dev.landChance) this.$dev.landChance.value = Math.round(this.encounterChanceLand * 100);
- _code  new </}
-
+    }
 
     // ---------- WORLD ----------
     generateWorld() {
