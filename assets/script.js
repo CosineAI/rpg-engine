@@ -58,6 +58,10 @@
       this.typingFull = '';
       this.lastCombatMessage = null;
 
+      // Enemy sprite animation
+      this.enemyAnimTimer = null;
+      this.enemyFrame = 0;
+
       // State
       this.current = State.CUTSCENE;
 
@@ -125,6 +129,7 @@
       this.$.choices = Array.from(this.root.querySelectorAll('.choice'));
       this.$.devToggle = this.root.querySelector('#dev-toggle');
       this.$.devPanel = this.root.querySelector('#dev-console');
+      this.$.monster = this.root.querySelector('.monster');
 
       this.$.dialogue.addEventListener('click', (e) => {
         // click-to-advance is handled globally
@@ -682,6 +687,7 @@
     startCutscene() {
       this.current = State.CUTSCENE;
       this.cutIndex = 0;
+      this.stopEnemyAnim();
       this.render();
       this.syncDevConsole();
     }
@@ -698,6 +704,7 @@
     startOverworld() {
       this.current = State.OVERWORLD;
       this.combatMessage = '';
+      this.stopEnemyAnim();
       this.render();
       this.syncDevConsole();
     }
@@ -722,6 +729,7 @@
       };
       this.combatMessage = ['A foe approaches!', 'What will you do?'].join('\n');
       this.render();
+      this.startEnemyAnim();
       this.syncDevConsole();
     }
 
@@ -991,6 +999,36 @@
 
     skipTyping() {
       this.stopTyping(true);
+    }
+
+    // Enemy sprite animation helpers
+    startEnemyAnim() {
+      this.stopEnemyAnim();
+      this.enemyFrame = 0;
+      const el = this.$.monster;
+      if (!el) return;
+      const frames = 16;
+      const frameW = 16; // px per frame in the sprite sheet
+      const stepMs = 2000 / frames; // 2s loop
+
+      this.enemyAnimTimer = setInterval(() => {
+        if (this.current !== State.COMBAT) {
+          this.stopEnemyAnim();
+          return;
+        }
+        el.style.backgroundPosition = `-${this.enemyFrame * frameW}px 0px`;
+        this.enemyFrame = (this.enemyFrame + 1) % frames;
+      }, stepMs);
+    }
+
+    stopEnemyAnim() {
+      if (this.enemyAnimTimer) {
+        clearInterval(this.enemyAnimTimer);
+        this.enemyAnimTimer = null;
+      }
+      if (this.$.monster) {
+        this.$.monster.style.backgroundPosition = '0px 0px';
+      }
     }
 
   }
