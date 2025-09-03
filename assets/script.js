@@ -58,6 +58,10 @@
       this.typingFull = '';
       this.lastCombatMessage = null;
 
+      // Enemy sprite animation
+      this.enemyAnimTimer = null;
+      this.enemyFrame = 0;
+
       // State
       this.current = State.CUTSCENE;
 
@@ -125,6 +129,7 @@
       this.$.choices = Array.from(this.root.querySelectorAll('.choice'));
       this.$.devToggle = this.root.querySelector('#dev-toggle');
       this.$.devPanel = this.root.querySelector('#dev-console');
+      this.$.monster = this.root.querySelector('.monster');
 
       this.$.dialogue.addEventListener('click', (e) => {
         // click-to-advance is handled globally
@@ -682,6 +687,7 @@
     startCutscene() {
       this.current = State.CUTSCENE;
       this.cutIndex = 0;
+      this.stopEnemyAnim();
       this.render();
       this.syncDevConsole();
     }
@@ -698,6 +704,7 @@
     startOverworld() {
       this.current = State.OVERWORLD;
       this.combatMessage = '';
+      this.stopEnemyAnim();
       this.render();
       this.syncDevConsole();
     }
@@ -722,6 +729,7 @@
       };
       this.combatMessage = ['A foe approaches!', 'What will you do?'].join('\n');
       this.render();
+      this.startEnemyAnim();
       this.syncDevConsole();
     }
 
@@ -991,6 +999,60 @@
 
     skipTyping() {
       this.stopTyping(true);
+    }
+
+    // Enemy sprite animation helpers
+    startEnemyAnim() {
+      this.stopEnemyAnim();
+      this.enemyFrame = 0;
+      const el = this.$.monster;
+      if (!el) return;
+      const frames = 16;
+      const frameW = 16; // px per frame in the sprite sheet
+      const stepMs = 4000 / frames; // 4s loop
+      const pauseMs = 3000; // 3s pause between loops
+
+      const tick = () => {
+        if (this.current !== State.COMBAT) {
+          this.stopEnemyAnim();
+          return;
+        }
+        // If we've completed a loop, pause then restart
+        if (this.enemyFrame >= frames) {
+          this.enemyFrame = 0;
+          el.style.backgroundPosition = '0px 0px';
+          this.enemyAnimTimer = setTimeout(() => {
+            if (this.current !== State.COMBAT) {
+              this.stopEnemyAnim();
+              return;
+            }
+            // start next loop
+            this.enemyFrame = 1;
+            el.style.backgroundPosition = `-${1 * frameW}px 0px`;
+            this.enemyAnimTimer = setTimeout(tick, stepMs);
+          }, pauseMs);
+          return;
+        }
+
+        el.style.backgroundPosition = `-${this.enemyFrame * frameW}px 0px`;
+        this.enemyFrame += 1;
+        this.enemyAnimTimer = setTimeout(tick, stepMs);
+      };
+
+      // start first loop
+      this.enemyFrame = 0;
+      el.style.backgroundPosition = '0px 0px';
+      this.enemyAnimTimer = setTimeout(tick, stepMs);
+    }
+
+    stopEnemyAnim() {
+      if (this.enemyAnimTimer) {
+        clearTimeout(this.enemyAnimTimer);
+        this.enemyAnimTimer = null;
+      }
+      if (this.$.monster) {
+        this.$.monster.style.backgroundPosition = '0px 0px';
+      }
     }
 
   }
