@@ -459,8 +459,8 @@
 
       // If we failed to place a goal in bands, fallback anywhere on land
       if (!goalPlaced) {
-        outer: for (let y = 1; y &lt; this.mapHeight - 1; y++) {
-          for (let x = 1; x &lt; this.mapWidth - 1; x++) {
+        outer: for (let y = 1; y < this.mapHeight - 1; y++) {
+          for (let x = 1; x < this.mapWidth - 1; x++) {
             if (this.tiles[y][x] === 'land') {
               this.tiles[y][x] = 'goal';
               this.goal = { x, y };
@@ -714,7 +714,7 @@
         spe: 5,
         luc: 3,
       };
-      this.combatMessage = 'A foe approaches!\\nWhat will you do?';
+      this.combatMessage = ['A foe approaches!', 'What will you do?'].join('\n');
       this.render();
       this.syncDevConsole();
     }
@@ -927,8 +927,8 @@
         this.lastCombatMessage = null;
         return;
       }
-      // Normalize any literal "\n" sequences into real newlines for display
-      const msg = String(this.combatMessage || '').replaceAll('\\\\n', '\\n');
+      // Use the message as-is; CSS white-space handles newlines
+      const msg = String(this.combatMessage || '');
 
       // If the message has changed, start typing it out
       if (msg !== this.lastCombatMessage) {
